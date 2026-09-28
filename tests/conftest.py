@@ -16,6 +16,14 @@ from app.vision import backends  # noqa: E402
 from app.vision.matcher import gallery_cache  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def _reset_login_lockout():
+    from app.routers import auth
+
+    auth._failures.clear()
+    yield
+
+
 @pytest.fixture()
 def db_url():
     with tempfile.TemporaryDirectory() as d:

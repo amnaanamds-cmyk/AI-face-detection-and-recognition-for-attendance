@@ -76,12 +76,93 @@ python scripts/evaluate_liveness.py --data liveness_data
 This reports **APCER** (attacks accepted), **BPCER** (real people rejected) and **ACER** (their average),
 following ISO/IEC 30107-3. Report the results separately for each attack type.
 
-## 2. Development measurements (sanity checks)
+## 2. Results on real face data
+
+**Data.** The labelled test set of the open-source *deepface* project
+(github.com/serengil/deepface, `tests/unit/dataset`): 61 real photographs of 13 people, with 520
+unique labelled pairs (140 same-person, 380 different-person). The photos vary in lighting, pose,
+age, make-up, glasses and resolution (from 0.3 to 12 megapixels). Real attack samples: the print
+and screen-replay images published by Silent-Face-Anti-Spoofing
+(github.com/minivision-ai/Silent-Face-Anti-Spoofing, `images/sample`).
+Hardware: cloud CPU, no GPU.
+
+### 2.1 Problems the real data revealed, and the fixes
+
+| Finding on real photos | Fix |
+|---|---|
+| **28 % of photos had no face detected.** YuNet's confidence drops to 0.53–0.83 on faces wider than ~450 px (phone photos, a student close to the webcam). The same photos downscaled scored 0.93–0.96. | Multi-scale detection (640 px + full resolution up to 1920 px, merged with NMS). Now **100 %** detected. |
+| At the model authors' threshold 0.363, **25 % of strangers** were matched to an enrolled person in 1:N identification (the highest different-person similarity was 0.431). | Default threshold raised to **0.45**. The genuine minimum was 0.504, so 0.45 sits inside the safe band 0.45–0.525. |
+| A different student sitting down in the same place within 3 s would inherit the previous student's face track, and would never be marked. | Tracks are split when the embedding changes identity (similarity < 0.3). |
+| Geometric liveness alone could be fooled by aggressive photo waving (§3.3) and cannot stop video replays. | Anti-spoofing CNN added (MiniFASNet, CelebA-Spoof, live / print / replay). |
+
+### 2.2 Recognition (after the fixes)
+
+`python scripts/evaluate.py --data <images> --pairs pairs.csv` (1:1 verification):
+
+| Metric | Value |
+|---|---|
+| Pairs with an undetected face | 0 / 520 |
+| Accuracy at threshold 0.363 | 99.81 % |
+| TAR / FAR at 0.363 | 100 % / 0.26 % |
+| ROC AUC | 1.000 |
+| TAR @ FAR = 0.1 % | 100 % |
+| Mean similarity: same person / different people | 0.738 / 0.136 |
+
+`python scripts/evaluate.py --data <folder per person> --enroll 2 --unknown-fraction 0.25` (1:N identification, 10 enrolled + 3 strangers):
+
+| Threshold | Identification rate | FRR | Strangers accepted | Misidentified |
+|---|---|---|---|---|
+| 0.363 | 100 % | 0 % | 25 % | 0 % |
+| 0.40 | 100 % | 0 % | 8.3 % | 0 % |
+| **0.45 (default)** | **100 %** | **0 %** | **0 %** | **0 %** |
+| 0.525 | 100 % | 0 % | 0 % | 0 % |
+| 0.55 | 96.6 % | 3.4 % | 0 % | 0 % |
+
+Rank-1 (closed set): 100 %.
+
+### 2.3 Anti-spoofing CNN
+
+| Input | P(live) | Decision |
+|---|---|---|
+| 64 genuine photos | median 1.00, minimum 0.935 | 64 / 64 live |
+| Real person, webcam (Silent-Face sample T1) | 0.999 | live |
+| Printed photo attack (sample F1) | 0.015 | spoof |
+| Screen replay attack (sample F2) | 0.001 | spoof |
+
+Inference takes about 5 ms per face on a CPU through OpenCV DNN (no extra dependency). The model
+authors report 93.3 % accuracy and 0.990 ROC AUC on the CelebA-Spoof test set. Two attack samples
+confirm that the integration is correct, but they are not a measurement of its attack detection rate.
+Measure that with `scripts/evaluate_liveness.py` on prints and phone screens of your own students.
+
+### 2.4 End-to-end system test
+
+`tests/test_real_data.py` drives the whole system through its web API, exactly as the browser does:
+1. Import a CSV class list of 10 people and a ZIP of 2 photos each.
+2. Start a session with liveness on (CNN mode).
+3. Stream every remaining photo as 6 jittered, noisy 1280×720 webcam frames.
+4. Close the session and export the report.
+
+| Outcome | Count |
+|---|---|
+| Registered student marked with the **correct** name | **29 / 30** |
+| Registered student marked with a **wrong** name | **0** |
+| Still "checking liveness" after 6 frames (CNN P(live) 0.49, not rejected) | 1 |
+| Stranger photos marked present | **0 / 11** |
+| Real print / replay attacks rejected | **2 / 2** |
+| Session closed: absentees auto-marked, Excel report exported | ✓ |
+
+### 2.5 Speed
+
+With 7 faces in view on a CPU, a 720p frame takes 258 ms end to end (multi-scale detection 72 ms,
+about 27 ms per face for embedding and anti-spoofing). A 1080p frame takes 363 ms. Both fit in the
+500 ms budget of the live page (2 frames/s).
+
+## 3. Development measurements (sanity checks)
 
 Hardware: cloud container CPU, OpenCV 4.x/5.x DNN, no GPU. Images: the public test images
 `astronaut` (scikit-image) and `lena` (OpenCV samples), 512×512.
 
-### 2.1 Detection and recognition
+### 3.1 Detection and recognition
 
 | Check | Result |
 |---|---|
@@ -101,7 +182,7 @@ These numbers are consistent with the model's intended operating range, but two 
 With the 2 frames/s used by the live page, a single CPU core can handle roughly 10 faces per frame
 (≈ 40 ms per additional face).
 
-### 2.2 Liveness: why the design looks the way it does
+### 3.2 Liveness: why the design looks the way it does
 
 **Idea.** For a flat photo, the nose coordinates (a, b) in the affine frame (eye, eye, mouth centre)
 are invariant to any affine motion of the photo. For a real head they change with yaw and pitch. With
@@ -131,7 +212,7 @@ countermeasures were added, and each is covered by unit tests:
 5. **Threshold 0.12** (≈ a 20° head turn), with at least 6 frames and a 12 s timeout.
 6. **Sharpness check:** faces whose median Laplacian variance is very low (heavily blurred replays) are rejected.
 
-### 2.3 Liveness: simulated performance with the final configuration
+### 3.3 Liveness: simulated performance with the final configuration
 
 **Genuine users (model-based simulation).** A 3-D head turning sinusoidally, with random pitch
 jitter and landmark noise calibrated to the measured YuNet jitter (std of `a` ≈ 0.010). 200 trials
@@ -160,6 +241,10 @@ Each attack is run through the real detector and checker. 20 trials × 2 photos 
 Before the canonical re-detection and the roll gate were added, the moderate and aggressive attacks
 were accepted in 10 % and 40 % of trials respectively.
 
+These figures are for the **head-motion cue on its own** (`LIVENESS_MODE=motion`). In the default
+`auto`/`cnn` mode, the anti-spoofing CNN (§2.3) judges the texture of every frame instead, and
+`cnn+motion` requires both checks to pass.
+
 **Interpretation.** A photo held still or moved naturally is reliably rejected. An attacker who
 deliberately waves and twists the photo gets through in a minority of attempts. The cue cannot stop a
 **video replay** of the student turning their head, or a 3-D mask, because those contain real 3-D
@@ -168,9 +253,9 @@ which reduces the practical risk, but this limitation must be stated in the repo
 extension is a CNN-based anti-spoofing model (texture and moiré cues against screens and prints),
 combined with the geometric cue.
 
-## 3. Automated tests
+## 4. Automated tests
 
-`pytest -q` runs 32 tests without models or a camera. They cover the geometric invariance proof
+`pytest -q` runs 41 tests without models or a camera. They cover the geometric invariance proof
 (random affine motion of a flat face leaves (a, b) unchanged, while 3-D rotation changes it), liveness
 decisions, matching, tracking and voting, attendance rules, database constraints, analytics, reports,
 encryption, access control and the full web flow.

@@ -25,6 +25,9 @@ from app.vision.base import DetectedFace, VisionBackend, l2_normalize
 
 YUNET_FILE = "face_detection_yunet_2023mar.onnx"
 SFACE_FILE = "face_recognition_sface_2021dec.onnx"
+# Optional anti-spoofing CNN (MiniFASNet architecture trained on CelebA-Spoof,
+# classes: live / print / replay). Downloaded by scripts/download_models.py.
+ANTISPOOF_FILE = "AntiSpoofing_print-replay_1.5_128.onnx"
 
 
 class ModelsMissingError(RuntimeError):
@@ -46,29 +49,48 @@ class OpenCVBackend:
         self.min_face_size = min_face_size
         self._detector = cv2.FaceDetectorYN.create(str(det_path), "", (320, 320), score_threshold, 0.3, 5000)
         self._recognizer = cv2.FaceRecognizerSF.create(str(rec_path), "")
+        spoof_path = models_dir / ANTISPOOF_FILE
+        self._antispoof = cv2.dnn.readNetFromONNX(str(spoof_path)) if spoof_path.exists() else None
         # cv2.dnn networks are not thread-safe; FastAPI may call us from several threads.
         self._lock = threading.Lock()
 
-    def detect(self, image: np.ndarray) -> list[DetectedFace]:
-        h, w = image.shape[:2]
+    # YuNet is trained for small/medium faces: faces wider than ~450 px (phone photos,
+    # a student close to the webcam) get low scores and are missed at full resolution.
+    # We therefore detect on a 640 px copy (large faces) and, for bigger frames, also at
+    # full resolution up to 1920 px (small faces at the back of a classroom), then merge.
+    COARSE_SIDE = 640
+    FINE_MAX_SIDE = 1920
+
+    def _detect_at(self, image: np.ndarray, scale: float) -> np.ndarray:
+        img = image if scale == 1.0 else cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+        h, w = img.shape[:2]
         with self._lock:
             self._detector.setInputSize((w, h))
-            _, faces = self._detector.detect(image)
-        results: list[DetectedFace] = []
+            _, faces = self._detector.detect(img)
         if faces is None:
-            return results
-        for row in faces:
+            return np.zeros((0, 15), np.float32)
+        faces = faces.copy()
+        faces[:, :14] /= scale  # boxes and landmarks back to original pixel coordinates
+        return faces
+
+    def detect(self, image: np.ndarray) -> list[DetectedFace]:
+        long_side = max(image.shape[:2])
+        rows = [self._detect_at(image, min(1.0, self.COARSE_SIDE / long_side))]
+        if long_side > self.COARSE_SIDE:
+            rows.append(self._detect_at(image, min(1.0, self.FINE_MAX_SIDE / long_side)))
+        faces = np.concatenate(rows)
+        if len(faces) == 0:
+            return []
+        keep = cv2.dnn.NMSBoxes(faces[:, :4].tolist(), faces[:, 14].tolist(), 0.0, 0.3)
+        results: list[DetectedFace] = []
+        for i in np.array(keep).reshape(-1):
+            row = faces[i]
             x, y, fw, fh = (int(round(v)) for v in row[:4])
             if min(fw, fh) < self.min_face_size:
                 continue
-            results.append(
-                DetectedFace(
-                    bbox=(x, y, fw, fh),
-                    score=float(row[14]),
-                    landmarks=row[4:14].reshape(5, 2).astype(np.float32),
-                    raw=row,
-                )
-            )
+            results.append(DetectedFace(bbox=(x, y, fw, fh), score=float(row[14]),
+                                        landmarks=row[4:14].reshape(5, 2).astype(np.float32), raw=row))
+        results.sort(key=lambda f: f.bbox[0])
         return results
 
     def embed(self, image: np.ndarray, face: DetectedFace) -> np.ndarray:
@@ -76,6 +98,30 @@ class OpenCVBackend:
             aligned = self._recognizer.alignCrop(image, face.raw)
             feat = self._recognizer.feature(aligned)
         return l2_normalize(feat)
+
+    @property
+    def has_antispoof(self) -> bool:
+        return self._antispoof is not None
+
+    def spoof_score(self, image: np.ndarray, face: DetectedFace) -> float | None:
+        """Probability (0..1) that the face is a live person and not a print/screen.
+
+        Pre-processing matches the model's training: square crop of 1.5x the face box
+        centred on the face (zero padded), RGB, 128x128, scaled to [0, 1].
+        """
+        if self._antispoof is None:
+            return None
+        x, y, w, h = face.bbox
+        side = int(max(w, h) * 1.5)
+        x0, y0 = int(x + w / 2 - side / 2), int(y + h / 2 - side / 2)
+        padded = cv2.copyMakeBorder(image, side, side, side, side, cv2.BORDER_CONSTANT, value=0)
+        patch = padded[y0 + side:y0 + 2 * side, x0 + side:x0 + 2 * side]
+        blob = cv2.dnn.blobFromImage(patch, 1 / 255.0, (128, 128), swapRB=True)
+        with self._lock:
+            self._antispoof.setInput(blob)
+            logits = self._antispoof.forward()[0].astype(np.float64)
+        prob = np.exp(logits - logits.max())
+        return float(prob[0] / prob.sum())
 
     def liveness_landmarks(self, image: np.ndarray, face: DetectedFace, size: int = 256, eye_dist: float = 70.0) -> np.ndarray:
         """Landmarks re-detected on an eye-aligned, scale-normalised crop.

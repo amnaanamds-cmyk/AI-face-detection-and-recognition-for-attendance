@@ -18,10 +18,10 @@
 │   notifications.py low-attendance alerts (+SMTP)  app_settings.py runtime-configurable rules  │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
 │ AI / computer vision (app/vision)                                                             │
-│   backends.py  YuNet detector + SFace recogniser (OpenCV DNN, CPU)   | FakeBackend for tests  │
+│   backends.py  YuNet (multi-scale) + SFace + MiniFASNet (OpenCV DNN) | FakeBackend for tests  │
 │   pipeline.py  FaceTracker (IoU) → per-face embed → match → vote → liveness                   │
 │   matcher.py   Gallery: cosine similarity, threshold, margin → student / unknown             │
-│   liveness.py  3-D structure-from-motion test + sharpness                                     │
+│   liveness.py  anti-spoofing CNN + 3-D structure-from-motion test + sharpness                 │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
 │ SQLAlchemy 2  →  SQLite (default) / PostgreSQL                                                │
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
@@ -102,7 +102,9 @@ Design decisions
 |---|---|---|
 | `DETECTION_SCORE` | 0.85 | YuNet confidence; lower finds more (smaller/blurred) faces but more false detections |
 | `MIN_FACE_SIZE` | 40 px | ignore faces too small to recognise reliably |
-| `MATCH_THRESHOLD` | 0.363 | SFace cosine threshold; higher → lower FAR, higher FRR |
+| `MATCH_THRESHOLD` | 0.45 | SFace cosine threshold; higher → lower FAR, higher FRR (chosen from real-data measurements) |
+| `LIVENESS_MODE` | auto | `cnn` (anti-spoofing CNN, passive), `motion` (head turn), `cnn+motion`; auto = cnn if the model is installed |
+| `ANTISPOOF_THRESHOLD` | 0.7 | median CNN P(live) needed to accept; below 0.3 = spoof |
 | `MATCH_MARGIN` | 0.05 | best student must beat the runner-up by this much |
 | `VOTES_REQUIRED` | 3 | agreeing frames (of the last 5) before marking |
 | `LIVENESS_MOTION_THRESHOLD` | 0.12 | 3-D motion needed (≈ 20° head turn) |

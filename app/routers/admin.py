@@ -71,8 +71,19 @@ def reset_password(uid: int, request: Request, password: str = Form(...), user: 
 
 @router.get("/settings")
 def settings_page(request: Request, user: User = Depends(admin_only), db: Session = Depends(get_db)):
+    from app.services.attendance import resolve_liveness_mode
+    from app.vision.backends import ModelsMissingError, get_backend
+
+    try:
+        backend = get_backend()
+        effective = resolve_liveness_mode(str(app_settings.get_setting(db, "liveness_mode")), backend)
+        antispoof = bool(getattr(backend, "has_antispoof", False))
+        models_ok = True
+    except ModelsMissingError:
+        effective, antispoof, models_ok = "motion", False, False
     return render(request, "admin/settings.html", user, values=app_settings.all_settings(db),
-                  defs=app_settings.DEFAULTS)
+                  defs=app_settings.DEFAULTS, choices=app_settings.CHOICES, effective_mode=effective,
+                  antispoof=antispoof, models_ok=models_ok)
 
 
 @router.post("/settings")

@@ -79,8 +79,11 @@ def sharpness(face_crop: np.ndarray) -> float:
 class LivenessState:
     samples: list[tuple[float, float, float]] = field(default_factory=list)  # (t, a, b)
     sharpness: list[float] = field(default_factory=list)
+    cnn: list[float] = field(default_factory=list)  # anti-spoofing CNN P(live) per frame
+    first_seen: float | None = None
     decision: str = CHECKING
     score: float = 0.0
+    reason: str = ""
 
 
 def smoothed(values: np.ndarray) -> np.ndarray:
@@ -99,8 +102,19 @@ def motion_spread(coords: np.ndarray) -> float:
     return float(np.max(np.percentile(sm, 90, axis=0) - np.percentile(sm, 10, axis=0)))
 
 
+MODES = ("cnn", "motion", "cnn+motion")
+
+
 @dataclass
 class LivenessChecker:
+    """Combines the cues according to ``mode``:
+
+    * ``cnn``        - passive: anti-spoofing CNN only (no head movement needed)
+    * ``motion``     - active: 3-D motion test (student turns head)
+    * ``cnn+motion`` - strictest: both must pass
+    If the CNN model is not installed, ``cnn`` falls back to ``motion``.
+    """
+
     min_frames: int = 6
     motion_threshold: float = 0.12   # ~20 degrees of head turn (yaw) on an average face
     timeout_seconds: float = 12.0
@@ -108,26 +122,53 @@ class LivenessChecker:
     # Landmark error grows when a face is strongly rotated in-plane (typical of a photo
     # being waved around, rare for a seated student) - such frames are not used.
     max_roll_degrees: float = 15.0
+    mode: str = "motion"
+    motion_window: int = 16          # most recent frames used for the motion test (~8 s at 2 fps)
+    cnn_threshold: float = 0.7       # median P(live) needed to accept
+    cnn_reject: float = 0.3          # median P(live) below this = spoof
+    cnn_min_frames: int = 3
 
     def update(self, state: LivenessState, t: float, landmarks: np.ndarray, face_crop: np.ndarray,
-               roll: float | None = None) -> LivenessState:
+               roll: float | None = None, cnn_live: float | None = None) -> LivenessState:
         if state.decision != CHECKING:
             return state  # decisions are sticky for the life of the track
-        if roll is not None and abs(roll) > self.max_roll_degrees:
-            return state
-        a, b = affine_nose_coordinates(landmarks)
-        state.samples.append((t, a, b))
-        state.sharpness.append(sharpness(face_crop))
+        if state.first_seen is None:
+            state.first_seen = t
+        mode = self.mode
+        if "cnn" in mode and cnn_live is None and not state.cnn:
+            mode = "motion"  # CNN not available -> geometric cue only
+        use_cnn, use_motion = "cnn" in mode, "motion" in mode
 
-        motion = motion_spread(np.array([(s[1], s[2]) for s in state.samples]))
-        state.score = min(1.0, motion / self.motion_threshold) if self.motion_threshold > 0 else 1.0
-        enough = len(state.samples) >= self.min_frames
-        elapsed = t - state.samples[0][0]
+        if cnn_live is not None:
+            state.cnn.append(float(cnn_live))
+        rolled = roll is not None and abs(roll) > self.max_roll_degrees
+        if not rolled:
+            a, b = affine_nose_coordinates(landmarks)
+            state.samples.append((t, a, b))
+            state.sharpness.append(sharpness(face_crop))
 
-        if enough and float(np.median(state.sharpness)) < self.min_sharpness:
+        # sliding window: a student who sat still before turning their head is not penalised
+        recent = state.samples[-self.motion_window:]
+        motion = motion_spread(np.array([(s[1], s[2]) for s in recent])) if recent else 0.0
+        motion_ok = len(state.samples) >= self.min_frames and motion >= self.motion_threshold
+        cnn_med = float(np.median(state.cnn)) if state.cnn else 0.0
+        cnn_ready = len(state.cnn) >= self.cnn_min_frames
+        elapsed = t - state.first_seen
+
+        parts = []
+        if use_cnn:
+            parts.append(min(1.0, cnn_med / self.cnn_threshold) if self.cnn_threshold > 0 else 1.0)
+        if use_motion:
+            parts.append(min(1.0, motion / self.motion_threshold) if self.motion_threshold > 0 else 1.0)
+        state.score = min(parts)
+
+        if len(state.sharpness) >= self.min_frames and float(np.median(state.sharpness)) < self.min_sharpness:
+            state.decision, state.reason = SPOOF, "image too blurred (screen/print re-capture?)"
+        elif use_cnn and cnn_ready and cnn_med < self.cnn_reject:
+            state.decision, state.reason = SPOOF, f"anti-spoofing model: P(live)={cnn_med:.2f}"
+        elif (not use_cnn or (cnn_ready and cnn_med >= self.cnn_threshold)) and (not use_motion or motion_ok):
+            state.decision, state.reason = LIVE, ""
+        elif elapsed >= self.timeout_seconds and (len(state.samples) >= self.min_frames or cnn_ready):
             state.decision = SPOOF
-        elif enough and motion >= self.motion_threshold:
-            state.decision = LIVE
-        elif enough and elapsed >= self.timeout_seconds:
-            state.decision = SPOOF
+            state.reason = "no 3-D head movement" if use_motion and not motion_ok else "liveness not confirmed"
         return state

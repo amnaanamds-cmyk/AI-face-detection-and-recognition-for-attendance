@@ -161,16 +161,28 @@ class _TrackerRegistry:
 live_trackers = _TrackerRegistry()
 
 
+def resolve_liveness_mode(requested: str, backend) -> str:
+    has_cnn = bool(getattr(backend, "has_antispoof", False))
+    if requested == "auto":
+        return "cnn" if has_cnn else "motion"
+    if "cnn" in requested and not has_cnn:
+        return "motion"
+    return requested
+
+
 def build_pipeline(db: Session) -> RecognitionPipeline:
     cfg = app_settings.all_settings(db)
+    backend = get_backend()
     checker = LivenessChecker(
         min_frames=env.liveness_min_frames,
         motion_threshold=float(cfg["liveness_motion_threshold"]),
         timeout_seconds=env.liveness_timeout_seconds,
         min_sharpness=env.liveness_min_sharpness,
+        mode=resolve_liveness_mode(str(cfg["liveness_mode"]), backend),
+        cnn_threshold=float(cfg["antispoof_threshold"]),
     )
     return RecognitionPipeline(
-        get_backend(), checker, float(cfg["match_threshold"]), float(cfg["match_margin"]), int(cfg["votes_required"])
+        backend, checker, float(cfg["match_threshold"]), float(cfg["match_margin"]), int(cfg["votes_required"])
     )
 
 
@@ -203,7 +215,8 @@ def process_frame(db: Session, session: ClassSession, frame: np.ndarray, t: floa
 
             if r.liveness == SPOOF:
                 label, state = "Spoof suspected", "spoof"
-                track.outcome = "Rejected: liveness check failed (photo/screen?)"
+                track.outcome = "Rejected: liveness check failed" + (
+                    f" - {track.liveness.reason}" if track.liveness.reason else "")
                 _log(db, track, "spoof", session.id, "spoof", sid, r.similarity, r.liveness_score)
             elif r.student_id is None:
                 if r.candidate_id is None and len(track.votes) == track.votes.maxlen and all(v is None for v, _ in track.votes):
@@ -214,7 +227,8 @@ def process_frame(db: Session, session: ClassSession, frame: np.ndarray, t: floa
                     label, state = "Identifying…", "checking"
             elif not is_accepted(r):
                 label, state = names[r.student_id][0], "checking"
-                track.outcome = "Liveness check: please turn your head left and right"
+                track.outcome = ("Liveness check: turn your head left, hold, then right"
+                                 if "motion" in pipeline.liveness.mode else "Liveness check: please look at the camera")
             else:
                 label, state = names[r.student_id][0], "accepted"
                 if not track.marked:
@@ -245,7 +259,8 @@ def process_frame(db: Session, session: ClassSession, frame: np.ndarray, t: floa
                 "message": track.outcome,
             })
         db.commit()
-    return {"faces": out, "summary": session_summary(db, session)}
+    return {"faces": out, "summary": session_summary(db, session),
+            "liveness_mode": pipeline.liveness.mode if session.liveness_required else "off"}
 
 
 def session_summary(db: Session, session: ClassSession) -> dict:

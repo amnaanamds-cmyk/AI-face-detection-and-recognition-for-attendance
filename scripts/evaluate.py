@@ -20,6 +20,10 @@ Reported metrics
                   misidentification rate; threshold sweep, EER and a confusion matrix
   * Performance : detection / embedding latency and estimated FPS
 
+Pair verification (LFW-style protocol) - CSV with columns file_x,file_y,same (1/0):
+
+    python scripts/evaluate.py --data images_dir --pairs pairs.csv --out results/pairs
+
 Run separately per condition to compare (e.g. dataset_normal/, dataset_lowlight/, dataset_angles/):
 
     python scripts/evaluate.py --data dataset_normal --out results/normal
@@ -61,6 +65,55 @@ def largest(faces):
     return max(faces, key=lambda f: f.bbox[2] * f.bbox[3]) if faces else None
 
 
+def verify_pairs(backend, image_dir: Path, pairs_csv: Path, threshold: float, out: Path) -> int:
+    """Verification accuracy, ROC AUC and TAR at fixed FAR on labelled pairs."""
+    cache: dict[str, np.ndarray | None] = {}
+
+    def emb(name: str):
+        if name not in cache:
+            img = cv2.imread(str(image_dir / name))
+            face = largest(backend.detect(img)) if img is not None else None
+            cache[name] = backend.embed(img, face) if face is not None else None
+        return cache[name]
+
+    scores, labels, undetected = [], [], 0
+    with pairs_csv.open() as f:
+        for row in csv.DictReader(f):
+            a, b = emb(row["file_x"]), emb(row["file_y"])
+            if a is None or b is None:
+                undetected += 1
+                scores.append(-1.0)  # no face = cannot be verified = rejected
+            else:
+                scores.append(float(a @ b))
+            labels.append(int(row["same"]))
+    s, y = np.array(scores), np.array(labels)
+    genuine, impostor = s[y == 1], s[y == 0]
+    # ROC AUC via the Mann-Whitney statistic
+    auc = float(np.mean([(g > impostor).mean() + 0.5 * (g == impostor).mean() for g in genuine]))
+    acc = float(((s >= threshold) == (y == 1)).mean())
+    ths = np.unique(s)
+    best_t = max(ths, key=lambda t: ((s >= t) == (y == 1)).mean())
+    tar_at = {}
+    for far in (0.01, 0.001):
+        t = np.quantile(impostor, 1 - far) if len(impostor) else 1.0
+        tar_at[f"TAR@FAR={far}"] = float((genuine > t).mean())
+    report = {
+        "pairs": len(y), "genuine_pairs": int(y.sum()), "impostor_pairs": int((1 - y).sum()),
+        "pairs_with_undetected_face": undetected,
+        "threshold": threshold, "accuracy_at_threshold": acc,
+        "TAR_at_threshold": float((genuine >= threshold).mean()), "FAR_at_threshold": float((impostor >= threshold).mean()),
+        "best_threshold": float(best_t), "best_accuracy": float(((s >= best_t) == (y == 1)).mean()),
+        "roc_auc": auc, **tar_at,
+        "genuine_similarity_mean": float(genuine.mean()), "impostor_similarity_mean": float(impostor.mean()),
+        "impostor_similarity_max": float(impostor.max()),
+    }
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "pairs_report.json").write_text(json.dumps(report, indent=2))
+    for k, v in report.items():
+        print(f"{k:28s} {v:.4f}" if isinstance(v, float) else f"{k:28s} {v}")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--data", required=True, type=Path)
@@ -71,9 +124,12 @@ def main() -> int:
     ap.add_argument("--margin", type=float, default=settings.match_margin)
     ap.add_argument("--annotations", type=Path, help="CSV with columns file,x,y,w,h (ground-truth boxes)")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--pairs", type=Path, help="pair-verification CSV (file_x,file_y,same) relative to --data")
     args = ap.parse_args()
 
     backend = OpenCVBackend(settings.models_dir, settings.detection_score_threshold, settings.min_face_size)
+    if args.pairs:
+        return verify_pairs(backend, args.data, args.pairs, args.threshold, args.out)
     data = load_dataset(args.data)
     if len(data) < 2:
         print("Need at least two identity folders")

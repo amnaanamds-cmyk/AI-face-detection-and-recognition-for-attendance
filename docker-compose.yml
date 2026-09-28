@@ -1,0 +1,30 @@
+# Production-style deployment: app + PostgreSQL.
+#   SECRET_KEY=$(python -c "import secrets;print(secrets.token_urlsafe(48))") docker compose up -d
+# then open https://<server-ip>:8443
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: attendance
+      POSTGRES_USER: attendance
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-change-me}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U attendance"]
+      interval: 5s
+      retries: 10
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db: {condition: service_healthy}
+    ports: ["8443:8443"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://attendance:${DB_PASSWORD:-change-me}@db/attendance
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+    volumes: [appdata:/app/data]
+volumes:
+  pgdata:
+  appdata:

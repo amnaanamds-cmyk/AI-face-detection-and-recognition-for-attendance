@@ -43,6 +43,7 @@ class Track:
     marked: bool = False  # attendance already handled for this track
     outcome: str = ""     # last attendance message shown for this track
     logged: set = field(default_factory=set)  # audit events already written for this track
+    embedding: np.ndarray | None = None      # running mean embedding of this face
 
     def consensus(self, required: int) -> tuple[int | None, float]:
         ids = [sid for sid, _ in self.votes if sid is not None]
@@ -56,7 +57,12 @@ class Track:
 
 
 class FaceTracker:
-    """Greedy IoU tracker - enough for a mostly static classroom camera."""
+    """Greedy IoU tracker - enough for a mostly static classroom camera.
+
+    Box overlap alone cannot tell two people apart when one student leaves and another
+    sits in the same place, so the pipeline also splits a track when the face embedding
+    changes to a different person (see ``split``).
+    """
 
     def __init__(self, iou_threshold: float = 0.3, max_age: float = 3.0):
         self.iou_threshold = iou_threshold
@@ -85,6 +91,18 @@ class FaceTracker:
             tr.bbox, tr.last_seen = f.bbox, t
             out.append((tr, f))
         return out
+
+    def split(self, track: "Track", t: float) -> "Track":
+        """Replace ``track`` by a fresh one (a different person now occupies this position)."""
+        self.tracks.pop(track.id, None)
+        new = Track(id=next(_track_ids), bbox=track.bbox, first_seen=t, last_seen=t)
+        self.tracks[new.id] = new
+        return new
+
+
+# Below this cosine similarity between consecutive embeddings of one track, the face is
+# treated as a different person (same person across frames: typically > 0.6).
+SAME_TRACK_MIN_SIMILARITY = 0.3
 
 
 @dataclass
@@ -129,15 +147,20 @@ class RecognitionPipeline:
         results = []
         for track, face in tracker.update(faces, t):
             emb = self.backend.embed(frame, face)
+            if track.embedding is not None and float(emb @ track.embedding) < SAME_TRACK_MIN_SIMILARITY:
+                track = tracker.split(track, t)
+            track.embedding = emb if track.embedding is None else _update_mean(track.embedding, emb)
             m = gallery.match(emb, self.threshold, self.margin)
             track.votes.append((m.student_id, m.similarity))
             sid, conf_sim = track.consensus(self.votes_required)
 
             if liveness_required:
                 lm_fn = getattr(self.backend, "liveness_landmarks", None)
-                landmarks = lm_fn(frame, face) if lm_fn else face.landmarks
+                landmarks = lm_fn(frame, face) if lm_fn and "motion" in self.liveness.mode else face.landmarks
+                spoof_fn = getattr(self.backend, "spoof_score", None)
+                cnn_live = spoof_fn(frame, face) if spoof_fn and "cnn" in self.liveness.mode else None
                 self.liveness.update(track.liveness, t, landmarks, crop(frame, face.bbox),
-                                     roll=roll_degrees(face.landmarks))
+                                     roll=roll_degrees(face.landmarks), cnn_live=cnn_live)
                 live_state, live_score = track.liveness.decision, track.liveness.score
             else:
                 live_state, live_score = "disabled", 1.0
@@ -157,6 +180,12 @@ class RecognitionPipeline:
                 )
             )
         return results
+
+
+def _update_mean(mean: np.ndarray, new: np.ndarray, alpha: float = 0.3) -> np.ndarray:
+    v = (1 - alpha) * mean + alpha * new
+    n = float(np.linalg.norm(v))
+    return v / n if n > 0 else new
 
 
 def is_accepted(result: FaceResult) -> bool:

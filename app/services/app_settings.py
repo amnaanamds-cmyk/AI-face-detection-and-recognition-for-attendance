@@ -15,8 +15,13 @@ DEFAULTS: dict[str, tuple[object, type, str]] = {
     "match_margin": (env.match_margin, float, "Required margin over the 2nd-best student"),
     "votes_required": (env.votes_required, int, "Agreeing frames required before marking"),
     "liveness_enabled": (env.liveness_enabled, bool, "Require liveness (anti-spoofing) by default"),
+    "liveness_mode": (env.liveness_mode, str, "Liveness method: auto | cnn | motion | cnn+motion"),
+    "antispoof_threshold": (env.antispoof_threshold, float, "Anti-spoofing CNN: min. P(live) to accept"),
     "liveness_motion_threshold": (env.liveness_motion_threshold, float, "Liveness 3-D motion threshold"),
 }
+
+
+CHOICES = {"liveness_mode": ("auto", "cnn", "motion", "cnn+motion")}
 
 
 def _cast(value: str, typ: type):
@@ -40,6 +45,8 @@ def set_setting(db: Session, key: str, value) -> None:
         raise KeyError(key)
     _, typ, _ = DEFAULTS[key]
     value = _cast(value, typ)  # validate
+    if key in CHOICES and value not in CHOICES[key]:
+        raise ValueError(f"{key} must be one of {', '.join(CHOICES[key])}")
     row = db.get(AppSetting, key)
     if row:
         row.value = str(value)

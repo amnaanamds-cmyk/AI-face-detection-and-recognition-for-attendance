@@ -17,7 +17,7 @@ function startLive(sessionId) {
       x = overlay.width - x - w;                     // mirror to match the preview
       const color = COLORS[f.state] || '#fff';
       ctx.strokeStyle = color; ctx.strokeRect(x, y, w, h);
-      const text = f.label + (f.liveness === 'checking' ? ' · turn head' : '');
+      const text = f.label + (f.liveness === 'checking' ? ' · checking liveness' : '');
       const tw = ctx.measureText(text).width + 10;
       ctx.fillStyle = color; ctx.fillRect(x, Math.max(0, y - 24), tw, 24);
       ctx.fillStyle = f.state === 'checking' ? '#000' : '#fff'; ctx.fillText(text, x + 5, Math.max(18, y - 6));
@@ -46,12 +46,13 @@ function startLive(sessionId) {
     busy = true;
     const t0 = performance.now();
     try {
-      const image = cam.capture(0.8, 960);
+      const image = cam.capture(0.85, cam.video.videoWidth);  // full resolution: small faces at the back need it
       const scale = cam.scale;
       const res = await fetch(`/api/sessions/${sessionId}/frame`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({image})});
       const data = await res.json();
       if (!res.ok || data.error) { $('status').textContent = 'Error: ' + (data.detail || data.error); if (res.status >= 400) stop(); return; }
       draw(data.faces, scale); render(data);
+      const mh = $('motionHelp'); if (mh) mh.classList.toggle('d-none', !(data.liveness_mode || '').includes('motion'));
       $('status').textContent = `${data.faces.length} face(s) in view`;
       $('latency').textContent = `server round-trip ${Math.round(performance.now() - t0)} ms`;
     } catch (e) { $('status').textContent = 'Network error: ' + e.message; }
@@ -61,7 +62,8 @@ function startLive(sessionId) {
   function stop() { clearInterval(timer); timer = null; cam.stop(); $('btnStart').disabled = false; $('btnStop').disabled = true; $('status').textContent = 'Camera stopped.'; }
 
   $('btnStart').onclick = async () => {
-    try { await cam.start(); } catch (e) { $('status').textContent = 'Camera error: ' + e.message; return; }
+    const [w, h] = $('res').value.split('x').map(Number);
+    try { await cam.start(w, h); } catch (e) { $('status').textContent = 'Camera error: ' + e.message; return; }
     $('btnStart').disabled = true; $('btnStop').disabled = false;
     timer = setInterval(tick, +$('fps').value);
   };

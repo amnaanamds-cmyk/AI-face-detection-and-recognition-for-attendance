@@ -79,9 +79,11 @@ class Settings:
     models_dir: Path = field(default_factory=lambda: Path(_env("MODELS_DIR", str(BASE_DIR / "models"))))
     detection_score_threshold: float = field(default_factory=lambda: _env_float("DETECTION_SCORE", 0.85))
     min_face_size: int = field(default_factory=lambda: _env_int("MIN_FACE_SIZE", 40))
-    # Cosine-similarity threshold for SFace. 0.363 is the value recommended by the
-    # model authors on LFW; tune it with scripts/evaluate.py on your own data.
-    match_threshold: float = field(default_factory=lambda: _env_float("MATCH_THRESHOLD", 0.363))
+    # Cosine-similarity threshold for SFace. The model authors suggest 0.363 for 1:1
+    # verification; for 1:N identification of a whole class a stricter value is needed.
+    # 0.45 gave 100 % identification and 0 % unknown-accepted on the real-photo benchmark
+    # (docs/EVALUATION.md). Re-tune with scripts/evaluate.py on your own students.
+    match_threshold: float = field(default_factory=lambda: _env_float("MATCH_THRESHOLD", 0.45))
     # Best match must beat the best *other* student by this margin, otherwise "unknown".
     match_margin: float = field(default_factory=lambda: _env_float("MATCH_MARGIN", 0.05))
     # Number of agreeing recognitions of the same face track before attendance is marked.
@@ -89,6 +91,10 @@ class Settings:
 
     # --- Liveness ----------------------------------------------------------
     liveness_enabled: bool = field(default_factory=lambda: _env_bool("LIVENESS_ENABLED", True))
+    # auto = anti-spoofing CNN if its model is installed, otherwise head-motion test;
+    # or explicitly: cnn | motion | cnn+motion (strictest)
+    liveness_mode: str = field(default_factory=lambda: _env("LIVENESS_MODE", "auto"))
+    antispoof_threshold: float = field(default_factory=lambda: _env_float("ANTISPOOF_THRESHOLD", 0.7))
     liveness_min_frames: int = field(default_factory=lambda: _env_int("LIVENESS_MIN_FRAMES", 6))
     # Required variation of the affine-invariant nose coordinates (see app/vision/liveness.py)
     liveness_motion_threshold: float = field(default_factory=lambda: _env_float("LIVENESS_MOTION_THRESHOLD", 0.12))

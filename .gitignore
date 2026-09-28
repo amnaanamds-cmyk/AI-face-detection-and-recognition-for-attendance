@@ -10,3 +10,4 @@ models/*.onnx
 exports/
 *.log
 .DS_Store
+backups/

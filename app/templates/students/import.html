@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="h3 mb-3">Bulk import</h1>
+{% if result %}
+<div class="alert alert-{{ 'warning' if result.messages else 'success' }}">
+  {% if result.kind == 'students' %}<strong>Students:</strong> {{ result.created }} created, {{ result.updated }} updated, {{ result.enrolled }} course enrolment(s).
+  {% else %}<strong>Faces:</strong> {{ result.templates }} template(s) registered for {{ result.students }} student(s).{% endif %}
+  {% if result.messages %}<ul class="mb-0 mt-2 small">{% for m in result.messages %}<li>{{ m }}</li>{% endfor %}</ul>{% endif %}
+</div>
+{% endif %}
+<div class="row g-3">
+  <div class="col-lg-6"><div class="card"><div class="card-header">1. Class list (Excel or CSV)</div><div class="card-body">
+    <p class="small text-muted">Columns (any order, common spellings accepted): <strong>Student ID, Name</strong>, Roll No, Department, Semester, Section, Email, Phone, Consent (yes/no).
+    Existing students (same Student ID) are updated. <a href="/students/import/template.csv">Download template</a></p>
+    <form method="post" action="/students/import" enctype="multipart/form-data">
+      <input class="form-control mb-2" type="file" name="file" accept=".csv,.xlsx" required>
+      <div class="form-check"><input class="form-check-input" type="checkbox" name="auto_enroll" id="ae" checked><label class="form-check-label" for="ae">Enroll in courses of the same department / semester / section</label></div>
+      <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="consent" id="cs"><label class="form-check-label" for="cs">All students in this file have signed the biometric consent form (used when the file has no Consent column)</label></div>
+      <button class="btn btn-primary">Import students</button>
+    </form>
+  </div></div></div>
+  <div class="col-lg-6"><div class="card"><div class="card-header">2. Face photos (ZIP)</div><div class="card-body">
+    <p class="small text-muted">One folder per student named by Student ID, e.g. <code>BSCS-2023-001/1.jpg, 2.jpg, 3.jpg</code>,
+    or files named <code>BSCS-2023-001_1.jpg</code>. Use 3–5 clear photos per student (front, slightly left/right). Phone photos are fine.
+    Photos are converted to encrypted templates and not stored.</p>
+    <form method="post" action="/students/import/faces" enctype="multipart/form-data">
+      <input class="form-control mb-3" type="file" name="file" accept=".zip" required>
+      <button class="btn btn-primary">Import faces</button>
+    </form>
+  </div></div></div>
+</div>
+{% endblock %}

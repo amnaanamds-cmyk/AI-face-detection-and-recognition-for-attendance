@@ -80,3 +80,21 @@ def test_pipeline_votes_liveness_multi_face():
     last = {r.bbox[0]: r for r in results[-1]}
     assert last[250].liveness == "spoof"                           # photo never shows 3-D motion
     assert last[400].student_id is None                            # unknown never gets an identity
+
+
+def test_new_person_in_same_seat_gets_new_track():
+    """Student A leaves, student B sits in the same place a second later: B must get
+    their own track (own votes, own liveness, own attendance) instead of inheriting A's."""
+    backend = ScriptedBackend()
+    gallery = Gallery(np.stack([unit(1, 0, 0), unit(0, 1, 0)]), [10, 20])
+    pipe = RecognitionPipeline(backend, LivenessChecker(), threshold=0.5, margin=0.05, votes_required=3)
+    tracker = FaceTracker()
+    frame = np.zeros((300, 500, 3), np.uint8)
+    out = []
+    for i in range(8):
+        emb = (1, 0.05, 0) if i < 4 else (0.05, 1, 0)  # same box, different person from frame 4
+        backend.frames.append([(scripted_face(0, emb, 0), None)])
+        out.append(pipe.process(frame, gallery, tracker, liveness_required=False, t=i * 0.5)[0])
+    assert out[3].student_id == 10
+    assert out[4].track_id != out[3].track_id and out[4].student_id is None  # fresh track, no inherited votes
+    assert out[-1].student_id == 20

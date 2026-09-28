@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.models import FaceEmbedding, Student
+from app.services import app_settings
 from app.security import decrypt_embedding, encrypt_embedding
 from app.vision.backends import get_backend
 from app.vision.base import crop
@@ -36,15 +37,31 @@ def enroll_images(db: Session, student: Student, images: list[np.ndarray]) -> En
         if not faces:
             rejected.append(f"image {idx}: no face detected")
             continue
-        if len(faces) > 1:
-            rejected.append(f"image {idx}: {len(faces)} faces detected - only the student should be in the frame")
+        faces.sort(key=lambda f: f.bbox[2] * f.bbox[3], reverse=True)
+        if len(faces) > 1 and faces[0].bbox[2] * faces[0].bbox[3] < 2.5 * faces[1].bbox[2] * faces[1].bbox[3]:
+            rejected.append(f"image {idx}: {len(faces)} faces of similar size - only the student should be in the frame")
             continue
-        face = faces[0]
+        face = faces[0]  # the student is the dominant face; small background faces are ignored
         vec = backend.embed(img, face)
         quality = float(face.score) * min(1.0, sharpness(crop(img, face.bbox)) / 100.0)
         new_vectors.append(vec)
         db.add(FaceEmbedding(student_id=student.id, embedding=encrypt_embedding(vec), model_name=backend.name, quality=quality))
         accepted += 1
+
+    # Identity check: the new face must not already belong to another registered student
+    # (prevents the same person being enrolled twice, or photos being attached to the wrong record).
+    if new_vectors:
+        threshold = float(app_settings.get_setting(db, "match_threshold"))
+        others = load_gallery(db, exclude_student=student.id)
+        centroid = np.mean(new_vectors, axis=0)
+        centroid /= np.linalg.norm(centroid)
+        m = others.match(centroid, threshold)
+        if m.student_id is not None:
+            other = db.get(Student, m.student_id)
+            db.rollback()
+            return EnrollmentReport(0, [f"this face is already registered as {other.name} ({other.student_code}), "
+                                        f"similarity {m.similarity:.2f} - enrollment rejected"],
+                                    count_templates(db, student.id))
 
     # Sanity check: all images of one enrollment should show the same person.
     if len(new_vectors) >= 2:
@@ -73,13 +90,13 @@ def delete_faces(db: Session, student_id: int) -> int:
     return len(rows)
 
 
-def load_gallery(db: Session) -> Gallery:
+def load_gallery(db: Session, exclude_student: int | None = None) -> Gallery:
     backend = get_backend()
-    rows = db.execute(
-        select(FaceEmbedding.student_id, FaceEmbedding.embedding)
-        .join(Student)
-        .where(Student.is_active.is_(True), FaceEmbedding.model_name == backend.name)
-    ).all()
+    q = (select(FaceEmbedding.student_id, FaceEmbedding.embedding).join(Student)
+         .where(Student.is_active.is_(True), FaceEmbedding.model_name == backend.name))
+    if exclude_student is not None:
+        q = q.where(FaceEmbedding.student_id != exclude_student)
+    rows = db.execute(q).all()
     if not rows:
         return Gallery()
     vecs = np.stack([decrypt_embedding(blob) for _, blob in rows])

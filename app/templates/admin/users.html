@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="h3 mb-3">Users &amp; roles</h1>
+<div class="row g-3">
+  <div class="col-lg-8"><div class="card"><div class="table-responsive"><table class="table table-sm mb-0 align-middle">
+    <thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Linked student</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+    {% for u in users %}<tr><td>{{ u.username }}</td><td>{{ u.full_name }}</td><td><span class="badge text-bg-primary">{{ u.role.value }}</span></td>
+    <td>{{ u.student.student_code if u.student else '' }}</td><td>{{ 'Active' if u.is_active else 'Disabled' }}</td>
+    <td class="d-flex gap-1">
+      <form method="post" action="/users/{{ u.id }}/toggle"><button class="btn btn-sm btn-outline-secondary">{{ 'Disable' if u.is_active else 'Enable' }}</button></form>
+      <form method="post" action="/users/{{ u.id }}/password" class="d-flex gap-1"><input class="form-control form-control-sm" type="password" name="password" placeholder="new password" minlength="8" required style="width:130px"><button class="btn btn-sm btn-outline-primary">Reset</button></form>
+    </td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+  <div class="col-lg-4"><div class="card"><div class="card-header">Add user</div><form method="post" action="/users/new" class="card-body">
+    <div class="mb-2"><input class="form-control" name="username" placeholder="Username" required></div>
+    <div class="mb-2"><input class="form-control" name="full_name" placeholder="Full name (e.g. Dr. Ahmad)" required></div>
+    <div class="mb-2"><input class="form-control" type="email" name="email" placeholder="Email"></div>
+    <div class="mb-2"><input class="form-control" type="password" name="password" placeholder="Password (min. 8)" minlength="8" required></div>
+    <div class="mb-2"><select class="form-select" name="role">{% for r in roles %}<option value="{{ r }}" {{ 'selected' if r == 'teacher' }}>{{ r|title }}</option>{% endfor %}</select></div>
+    <div class="mb-3"><select class="form-select" name="student_id"><option value="0">— link to student (student role only) —</option>{% for s in students %}<option value="{{ s.id }}">{{ s.student_code }} {{ s.name }}</option>{% endfor %}</select></div>
+    <button class="btn btn-primary w-100">Create</button></form></div></div>
+</div>
+{% endblock %}

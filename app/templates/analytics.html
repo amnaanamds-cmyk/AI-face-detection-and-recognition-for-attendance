@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pct %}
+{% block content %}
+<h1 class="h3 mb-3">Attendance analytics <small class="text-muted">overall {{ pct(overall) }}</small></h1>
+<div class="row g-3">
+  <div class="col-lg-8"><div class="card"><div class="card-header">Daily attendance (last 30 days)</div><div class="card-body"><canvas id="daily" height="110"></canvas></div></div></div>
+  <div class="col-lg-4"><div class="card"><div class="card-header">Absences by weekday</div><div class="card-body"><canvas id="weekday" height="220"></canvas></div></div></div>
+  <div class="col-lg-6"><div class="card"><div class="card-header">Weekly trend</div><div class="card-body"><canvas id="weekly" height="140"></canvas></div></div></div>
+  <div class="col-lg-6"><div class="card"><div class="card-header">Monthly trend</div><div class="card-body"><canvas id="monthly" height="140"></canvas></div></div></div>
+  <div class="col-lg-6"><div class="card"><div class="card-header">Course-wise attendance</div><div class="card-body"><canvas id="courses" height="160"></canvas></div></div></div>
+  <div class="col-lg-3"><div class="card"><div class="card-header">Highest attendance</div><ul class="list-group list-group-flush">
+    {% for r in ranking.highest %}<li class="list-group-item d-flex justify-content-between"><a href="/students/{{ r.student.id }}">{{ r.student.name }}</a>{{ pct(r.rate) }}</li>{% else %}<li class="list-group-item text-muted">—</li>{% endfor %}</ul></div></div>
+  <div class="col-lg-3"><div class="card"><div class="card-header">Lowest attendance</div><ul class="list-group list-group-flush">
+    {% for r in ranking.lowest %}<li class="list-group-item d-flex justify-content-between"><span><a href="/students/{{ r.student.id }}">{{ r.student.name }}</a> <small class="text-muted">{{ r.absences }} abs.</small></span>{{ pct(r.rate) }}</li>{% else %}<li class="list-group-item text-muted">—</li>{% endfor %}</ul></div></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/vendor/chartjs/chart.umd.min.js"></script>
+<script>
+const c = {{ charts|tojson }};
+const pctAxis = {y: {min: 0, max: 100, ticks: {callback: v => v + '%'}}};
+const mk = (id, type, labels, data, label, extra = {}) => new Chart(document.getElementById(id),
+  {type, data: {labels, datasets: [{label, data, tension: .3, fill: type === 'line'}]}, options: {plugins: {legend: {display: false}}, ...extra}});
+mk('daily', 'line', c.daily.map(x => x.date), c.daily.map(x => x.rate), 'Attendance %', {scales: pctAxis});
+mk('weekly', 'bar', c.weekly.map(x => x.week), c.weekly.map(x => x.rate), 'Attendance %', {scales: pctAxis});
+mk('monthly', 'bar', c.monthly.map(x => x.month), c.monthly.map(x => x.rate), 'Attendance %', {scales: pctAxis});
+mk('courses', 'bar', c.courses.map(x => x.course), c.courses.map(x => x.rate), 'Attendance %', {indexAxis: 'y', scales: {x: {min: 0, max: 100}}});
+mk('weekday', 'bar', c.weekday.map(x => x.day), c.weekday.map(x => x.absences), 'Absences');
+</script>
+{% endblock %}

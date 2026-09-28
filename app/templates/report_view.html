@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <div><h1 class="h3 mb-0">{{ report.title }}</h1><div class="text-muted">{{ report.subtitle }}</div></div>
+  {% set base = request.url.path ~ '?' ~ (query|replace('fmt=html', '')) %}
+  <div class="btn-group"><a class="btn btn-outline-success" href="{{ base }}&fmt=xlsx">Excel</a><a class="btn btn-outline-danger" href="{{ base }}&fmt=pdf">PDF</a><a class="btn btn-outline-secondary" href="{{ base }}&fmt=csv">CSV</a></div>
+</div>
+<div class="card"><div class="table-responsive"><table class="table table-sm table-striped mb-0">
+  <thead><tr>{% for h in report.headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+  <tbody>{% for row in report.rows %}<tr>{% for c in row %}<td>{{ c }}</td>{% endfor %}</tr>{% else %}<tr><td colspan="{{ report.headers|length }}" class="text-muted">No records.</td></tr>{% endfor %}</tbody>
+</table></div></div>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_badge, session_state %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start mb-3 gap-2">
+  <div><h1 class="h3 mb-0">{{ session.course.code }} — {{ session.course.name }} {{ session_state(session.state) }}</h1>
+  <div class="text-muted">{{ session.date.strftime('%A, %d %B %Y') }}, {{ session.start_time.strftime('%H:%M') }}–{{ session.end_time.strftime('%H:%M') }}
+   &middot; Present ≤ {{ session.present_window_minutes }} min, Late ≤ {{ session.late_window_minutes }} min &middot; Liveness {{ 'on' if session.liveness_required else 'off' }}</div></div>
+  <div class="d-flex gap-2 flex-wrap">
+    {% if session.state.value != 'closed' %}
+    <a class="btn btn-success" href="/sessions/{{ session.id }}/live"><i class="bi bi-camera-video"></i> Live camera</a>
+    <form method="post" action="/sessions/{{ session.id }}/close" onsubmit="return confirm('Close session? Students without a record will be marked absent.')"><button class="btn btn-warning">Close session</button></form>
+    {% endif %}
+    <div class="btn-group"><a class="btn btn-outline-secondary" href="/reports/session/{{ session.id }}?fmt=xlsx">Excel</a>
+    <a class="btn btn-outline-secondary" href="/reports/session/{{ session.id }}?fmt=pdf">PDF</a>
+    <a class="btn btn-outline-secondary" href="/reports/session/{{ session.id }}?fmt=csv">CSV</a></div>
+    <form method="post" action="/sessions/{{ session.id }}/delete" onsubmit="return confirm('Delete this session and its attendance?')"><button class="btn btn-outline-danger">Delete</button></form>
+  </div>
+</div>
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3"><div class="card stat"><div class="card-body"><div class="small text-muted">Expected</div><div class="display-6">{{ summary.expected }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="card stat"><div class="card-body"><div class="small text-muted">Present / Late</div><div class="display-6 text-success">{{ summary.counts.present }} / {{ summary.counts.late }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="card stat"><div class="card-body"><div class="small text-muted">Absent</div><div class="display-6 text-danger">{{ summary.counts.absent }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="card stat"><div class="card-body"><div class="small text-muted">Attendance rate</div><div class="display-6">{{ summary.rate }}%</div></div></div></div>
+</div>
+<div class="card"><div class="table-responsive"><table class="table table-sm mb-0 align-middle">
+  <thead><tr><th>Student ID</th><th>Name</th><th>Status</th><th>Time</th><th>Confidence</th><th>Liveness</th><th>Method</th><th style="width: 330px">Override</th></tr></thead><tbody>
+  {% for st in students %}{% set r = recs.get(st.id) %}
+  <tr><td>{{ st.student_code }}</td><td>{{ st.name }}</td>
+  <td>{% if r %}{{ status_badge(r.status) }}{% else %}<span class="text-muted">Not marked</span>{% endif %}</td>
+  <td>{{ r.marked_at.strftime('%H:%M:%S') if r and r.marked_at else '--' }}</td>
+  <td>{{ '%.2f'|format(r.confidence) if r and r.confidence is not none else '' }}</td>
+  <td>{{ '%.2f'|format(r.liveness_score) if r and r.liveness_score is not none else '' }}</td>
+  <td class="small text-muted">{{ r.method if r else '' }}{% if r and r.note %} — {{ r.note }}{% endif %}</td>
+  <td><form method="post" action="/sessions/{{ session.id }}/override" class="d-flex gap-1">
+    <input type="hidden" name="student_id" value="{{ st.id }}">
+    <select name="status" class="form-select form-select-sm">{% for s in statuses %}<option value="{{ s }}" {{ 'selected' if r and r.status.value == s }}>{{ s|title }}</option>{% endfor %}</select>
+    <input name="note" class="form-control form-control-sm" placeholder="note">
+    <button class="btn btn-sm btn-outline-primary">Set</button></form></td></tr>
+  {% else %}<tr><td colspan="8" class="text-muted">No students enrolled in this course.</td></tr>{% endfor %}
+  </tbody></table></div></div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="h3 mb-3">Reports</h1>
+<div class="row g-3">
+  {% for kind, title, field, ftype, value in [('daily', 'Daily report', 'day', 'date', today), ('monthly', 'Monthly report', 'month', 'month', month)] %}
+  <div class="col-lg-6"><div class="card"><div class="card-header">{{ title }}</div><div class="card-body">
+    <form action="/reports/{{ kind }}" method="get" class="row g-2">
+      <div class="col-md-5"><input class="form-control" type="{{ ftype }}" name="{{ field }}" value="{{ value }}" required></div>
+      <div class="col-md-7"><select class="form-select" name="course_id"><option value="0">All my courses</option>
+        {% for c in courses %}<option value="{{ c.id }}">{{ c.code }} — {{ c.name }}</option>{% endfor %}</select></div>
+      <div class="col-12 d-flex gap-2 flex-wrap">
+        <button class="btn btn-primary" name="fmt" value="html">View</button>
+        <button class="btn btn-outline-success" name="fmt" value="xlsx"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+        <button class="btn btn-outline-danger" name="fmt" value="pdf"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
+        <button class="btn btn-outline-secondary" name="fmt" value="csv"><i class="bi bi-filetype-csv"></i> CSV</button>
+      </div>
+    </form></div></div></div>
+  {% endfor %}
+</div>
+<p class="text-muted small mt-3">Session reports can be exported from each session's page.</p>
+{% endblock %}

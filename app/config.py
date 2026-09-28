@@ -1,0 +1,109 @@
+"""Application configuration.
+
+All settings can be overridden with environment variables (or a ``.env`` file in
+the project root), so the same code runs on a laptop, in a lab or in tests.
+"""
+from __future__ import annotations
+
+import os
+import secrets
+from dataclasses import dataclass, field
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def _load_dotenv(path: Path) -> None:
+    """Minimal ``.env`` loader (KEY=VALUE per line) so no extra dependency is needed."""
+    if not path.exists():
+        return
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+_load_dotenv(BASE_DIR / ".env")
+
+
+def _env(name: str, default: str) -> str:
+    return os.environ.get(name, default)
+
+
+def _env_float(name: str, default: float) -> float:
+    return float(os.environ.get(name, default))
+
+
+def _env_int(name: str, default: int) -> int:
+    return int(os.environ.get(name, default))
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    return os.environ.get(name, str(default)).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _secret_key() -> str:
+    """Use SECRET_KEY if set, otherwise persist a random one in data/ so sessions and
+    encrypted embeddings survive restarts."""
+    if os.environ.get("SECRET_KEY"):
+        return os.environ["SECRET_KEY"]
+    key_file = BASE_DIR / "data" / ".secret_key"
+    key_file.parent.mkdir(parents=True, exist_ok=True)
+    if not key_file.exists():
+        key_file.write_text(secrets.token_urlsafe(48))
+        try:
+            key_file.chmod(0o600)
+        except OSError:
+            pass
+    return key_file.read_text().strip()
+
+
+@dataclass
+class Settings:
+    app_name: str = "Smart Classroom Attendance"
+    database_url: str = field(default_factory=lambda: _env("DATABASE_URL", f"sqlite:///{BASE_DIR / 'data' / 'attendance.db'}"))
+    secret_key: str = field(default_factory=_secret_key)
+    # Optional separate key for encrypting face embeddings (defaults to SECRET_KEY).
+    embedding_key: str = field(default_factory=lambda: _env("EMBEDDING_KEY", ""))
+
+    # Initial administrator created on first start-up.
+    admin_username: str = field(default_factory=lambda: _env("ADMIN_USERNAME", "admin"))
+    admin_password: str = field(default_factory=lambda: _env("ADMIN_PASSWORD", "admin123"))
+
+    # --- AI / vision -------------------------------------------------------
+    # "opencv" = YuNet detector + SFace recogniser (real models, see scripts/download_models.py)
+    # "fake"   = deterministic stand-in used by the automated tests (no models required)
+    vision_backend: str = field(default_factory=lambda: _env("VISION_BACKEND", "opencv"))
+    models_dir: Path = field(default_factory=lambda: Path(_env("MODELS_DIR", str(BASE_DIR / "models"))))
+    detection_score_threshold: float = field(default_factory=lambda: _env_float("DETECTION_SCORE", 0.85))
+    min_face_size: int = field(default_factory=lambda: _env_int("MIN_FACE_SIZE", 40))
+    # Cosine-similarity threshold for SFace. 0.363 is the value recommended by the
+    # model authors on LFW; tune it with scripts/evaluate.py on your own data.
+    match_threshold: float = field(default_factory=lambda: _env_float("MATCH_THRESHOLD", 0.363))
+    # Best match must beat the best *other* student by this margin, otherwise "unknown".
+    match_margin: float = field(default_factory=lambda: _env_float("MATCH_MARGIN", 0.05))
+    # Number of agreeing recognitions of the same face track before attendance is marked.
+    votes_required: int = field(default_factory=lambda: _env_int("VOTES_REQUIRED", 3))
+
+    # --- Liveness ----------------------------------------------------------
+    liveness_enabled: bool = field(default_factory=lambda: _env_bool("LIVENESS_ENABLED", True))
+    liveness_min_frames: int = field(default_factory=lambda: _env_int("LIVENESS_MIN_FRAMES", 6))
+    # Required variation of the affine-invariant nose coordinates (see app/vision/liveness.py)
+    liveness_motion_threshold: float = field(default_factory=lambda: _env_float("LIVENESS_MOTION_THRESHOLD", 0.12))
+    liveness_timeout_seconds: float = field(default_factory=lambda: _env_float("LIVENESS_TIMEOUT", 12.0))
+    liveness_min_sharpness: float = field(default_factory=lambda: _env_float("LIVENESS_MIN_SHARPNESS", 15.0))
+
+    # --- Enrollment --------------------------------------------------------
+    min_enrollment_images: int = field(default_factory=lambda: _env_int("MIN_ENROLLMENT_IMAGES", 3))
+
+    # --- Notifications (optional e-mail) ------------------------------------
+    smtp_host: str = field(default_factory=lambda: _env("SMTP_HOST", ""))
+    smtp_port: int = field(default_factory=lambda: _env_int("SMTP_PORT", 587))
+    smtp_user: str = field(default_factory=lambda: _env("SMTP_USER", ""))
+    smtp_password: str = field(default_factory=lambda: _env("SMTP_PASSWORD", ""))
+    smtp_sender: str = field(default_factory=lambda: _env("SMTP_SENDER", ""))
+
+
+settings = Settings()

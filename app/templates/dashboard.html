@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_badge, pct, session_state %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+  <h1 class="h3 mb-0">AI Attendance Dashboard</h1>
+  <a class="btn btn-primary" href="/sessions/new"><i class="bi bi-camera-video"></i> Start attendance</a>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3"><div class="card stat"><div class="card-body">
+    <div class="text-muted small">Students</div><div class="display-6">{{ d.total_students }}</div>
+    <div class="small text-muted">{{ d.faces_registered }} with registered face</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card stat"><div class="card-body">
+    <div class="text-muted small">Present today</div><div class="display-6 text-success">{{ d.present_today }}</div>
+    <div class="small text-muted">{{ d.late_today }} of them late</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card stat"><div class="card-body">
+    <div class="text-muted small">Absent today</div><div class="display-6 text-danger">{{ d.absent_today }}</div>
+    <div class="small text-muted">of {{ d.expected_today }} expected</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card stat"><div class="card-body">
+    <div class="text-muted small">Today's attendance</div><div class="display-6">{{ pct(d.rate_today) }}</div>
+    <div class="small text-muted">Overall: {{ pct(d.overall_rate) }}</div></div></div></div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card mb-3"><div class="card-header">Attendance trend (last 14 days)</div>
+      <div class="card-body"><canvas id="trend" height="120"></canvas>
+      {% if not trend %}<p class="text-muted small mb-0">No attendance data yet.</p>{% endif %}</div></div>
+    <div class="card"><div class="card-header">Today's sessions</div>
+      <div class="table-responsive"><table class="table table-sm mb-0 align-middle">
+        <thead><tr><th>Course</th><th>Time</th><th>State</th><th></th></tr></thead>
+        <tbody>
+        {% for s in d.sessions_today %}
+          <tr><td>{{ s.course.code }} - {{ s.course.name }}</td><td>{{ s.start_time.strftime('%H:%M') }}</td>
+          <td>{{ session_state(s.state) }}</td>
+          <td class="text-end">{% if s.state.value != 'closed' %}<a class="btn btn-sm btn-success" href="/sessions/{{ s.id }}/live">Live</a>{% endif %}
+          <a class="btn btn-sm btn-outline-secondary" href="/sessions/{{ s.id }}">Details</a></td></tr>
+        {% else %}<tr><td colspan="4" class="text-muted">No sessions today.</td></tr>{% endfor %}
+        </tbody></table></div></div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card mb-3"><div class="card-header">Recent attendance</div>
+      <ul class="list-group list-group-flush">
+      {% for r in d.recent %}
+        <li class="list-group-item d-flex justify-content-between"><span>{{ r.student.name }} <small class="text-muted">{{ r.course.code }}</small></span>
+        <span>{{ status_badge(r.status) }} <small class="text-muted">{{ r.marked_at.strftime('%H:%M') }}</small></span></li>
+      {% else %}<li class="list-group-item text-muted">Nothing marked yet today.</li>{% endfor %}
+      </ul></div>
+    <div class="card"><div class="card-header d-flex justify-content-between"><span>Attendance alerts</span><a href="/notifications" class="small">All</a></div>
+      <ul class="list-group list-group-flush">
+      {% for n in alerts %}<li class="list-group-item small"><i class="bi bi-exclamation-triangle text-warning"></i> {{ n.message }}</li>
+      {% else %}<li class="list-group-item text-muted small">No unread alerts.</li>{% endfor %}
+      </ul></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/vendor/chartjs/chart.umd.min.js"></script>
+<script>
+const trend = {{ trend|tojson }};
+if (trend.length) new Chart(document.getElementById('trend'), {type: 'line',
+  data: {labels: trend.map(t => t.date), datasets: [{label: 'Attendance %', data: trend.map(t => t.rate), tension: .3, fill: true}]},
+  options: {scales: {y: {min: 0, max: 100}}, plugins: {legend: {display: false}}}});
+</script>
+{% endblock %}

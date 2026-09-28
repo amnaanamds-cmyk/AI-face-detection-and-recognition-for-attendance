@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="h3 mb-3">{{ 'Edit student' if student else 'Student registration' }}</h1>
+<form method="post" class="card card-body" style="max-width: 820px">
+  <div class="row g-3">
+    <div class="col-md-6"><label class="form-label">Student ID *</label><input class="form-control" name="student_code" required placeholder="BSCS-2023-001" value="{{ student.student_code if student else '' }}"></div>
+    <div class="col-md-6"><label class="form-label">Roll number</label><input class="form-control" name="roll_number" value="{{ student.roll_number or '' if student else '' }}"></div>
+    <div class="col-md-6"><label class="form-label">Full name *</label><input class="form-control" name="name" required value="{{ student.name if student else '' }}"></div>
+    <div class="col-md-6"><label class="form-label">Department</label><input class="form-control" name="department" value="{{ student.department if student else 'Computer Science' }}"></div>
+    <div class="col-md-3"><label class="form-label">Semester</label><input class="form-control" type="number" min="1" max="12" name="semester" value="{{ student.semester if student else 1 }}"></div>
+    <div class="col-md-3"><label class="form-label">Section</label><input class="form-control" name="section" value="{{ student.section if student else 'A' }}"></div>
+    <div class="col-md-6"><label class="form-label">Email</label><input class="form-control" type="email" name="email" value="{{ student.email or '' if student else '' }}"></div>
+    <div class="col-md-6"><label class="form-label">Contact</label><input class="form-control" name="phone" value="{{ student.phone or '' if student else '' }}"></div>
+    <div class="col-12">
+      <div class="form-check"><input class="form-check-input" type="checkbox" name="consent" id="consent" {{ 'checked' if student and student.consent_given }}>
+      <label class="form-check-label" for="consent">The student has given <strong>informed consent</strong> for their facial data to be processed for attendance.</label></div>
+      {% if student %}
+      <div class="form-check"><input class="form-check-input" type="checkbox" name="is_active" id="active" {{ 'checked' if student.is_active }}><label class="form-check-label" for="active">Active</label></div>
+      {% else %}
+      <div class="form-check"><input class="form-check-input" type="checkbox" name="auto_enroll" id="ae" checked><label class="form-check-label" for="ae">Enroll in all courses of this department / semester / section</label></div>
+      <div class="form-check"><input class="form-check-input" type="checkbox" name="create_account" id="ca" onchange="pw.disabled=!this.checked"><label class="form-check-label" for="ca">Create a student login (username = Student ID)</label></div>
+      <input id="pw" class="form-control mt-2" style="max-width:320px" type="password" name="password" minlength="8" placeholder="Initial password" disabled>
+      {% endif %}
+    </div>
+  </div>
+  <div class="mt-4"><button class="btn btn-primary">{{ 'Save' if student else 'Register & capture face' }}</button>
+  <a class="btn btn-link" href="{{ '/students/%d'|format(student.id) if student else '/students' }}">Cancel</a></div>
+</form>
+{% endblock %}

@@ -1,0 +1,12 @@
+body { background: #f4f6f9; }
+.bg-primary-subtle-dark { background: #1f4e79; }
+.card { border: 0; box-shadow: 0 1px 3px rgba(0, 0, 0, .08); }
+.card-header { background: #fff; font-weight: 600; }
+.stat .display-6 { font-size: 2rem; font-weight: 600; }
+.video-wrap { position: relative; width: 100%; background: #111; border-radius: .5rem; overflow: hidden; aspect-ratio: 4 / 3; }
+.video-wrap video, .video-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.video-wrap video { transform: scaleX(-1); }   /* mirror preview; overlay is mirrored in JS */
+.thumb { width: 72px; height: 72px; object-fit: cover; border-radius: .35rem; }
+.live-dot { display: inline-block; width: .7rem; height: .7rem; border-radius: 50%; background: #dc3545; margin-right: .35rem; animation: pulse 1.2s infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+.navbar .nav-link, .navbar-text { white-space: nowrap; }

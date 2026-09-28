@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_badge, pct %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start mb-3 gap-2">
+  <div>
+    <h1 class="h3 mb-0">{{ student.name }}</h1>
+    <div class="text-muted">{{ student.student_code }}{% if student.roll_number %} &middot; Roll {{ student.roll_number }}{% endif %} &middot; {{ student.department }} &middot; Semester {{ student.semester }}{{ student.section }}</div>
+  </div>
+  {% if user.role.value == 'admin' %}
+  <div class="btn-group">
+    <a class="btn btn-primary" href="/students/{{ student.id }}/enroll"><i class="bi bi-camera"></i> Register face</a>
+    <a class="btn btn-outline-secondary" href="/students/{{ student.id }}/edit">Edit</a>
+    <form method="post" action="/students/{{ student.id }}/delete" onsubmit="return confirm('Delete this student and ALL their data (including face templates)?')">
+      <button class="btn btn-outline-danger rounded-start-0">Delete</button></form>
+  </div>{% endif %}
+</div>
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3"><div class="card stat"><div class="card-body"><div class="small text-muted">Total classes</div><div class="display-6">{{ s.total_classes }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="card stat"><div class="card-body"><div class="small text-muted">Present / Late</div><div class="display-6 text-success">{{ s.counts.present }} / {{ s.counts.late }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="card stat"><div class="card-body"><div class="small text-muted">Absent</div><div class="display-6 text-danger">{{ s.counts.absent }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="card stat"><div class="card-body"><div class="small text-muted">Attendance</div><div class="display-6">{{ pct(s.rate) }}</div></div></div></div>
+</div>
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="card mb-3"><div class="card-header">Biometric data</div><div class="card-body">
+      <p class="mb-1">Consent recorded: {% if student.consent_given %}<span class="text-success">Yes</span>{% else %}<span class="text-danger">No</span>{% endif %}</p>
+      <p class="mb-2">Face templates (encrypted embeddings): <strong>{{ templates_count }}</strong></p>
+      {% if user.role.value == 'admin' and templates_count %}
+      <form method="post" action="/students/{{ student.id }}/faces/delete" onsubmit="return confirm('Delete all face templates?')"><button class="btn btn-sm btn-outline-danger">Delete face data</button></form>{% endif %}
+    </div></div>
+    <div class="card"><div class="card-header">Courses</div>
+      <table class="table table-sm mb-0"><tbody>
+      {% for c in s.courses %}<tr><td>{{ c.course.code }} {{ c.course.name }}</td><td>{{ c.attended }}/{{ c.total }}</td><td>{{ pct(c.rate) }}</td></tr>{% endfor %}
+      {% for e in student.enrollments if e.course_id not in s.courses|map(attribute='course.id')|list %}<tr><td>{{ e.course.code }} {{ e.course.name }}</td><td colspan="2" class="text-muted">no sessions yet</td></tr>{% endfor %}
+      </tbody></table>
+      {% if all_courses %}
+      <form method="post" action="/students/{{ student.id }}/courses" class="card-body d-flex gap-2 border-top">
+        <select class="form-select form-select-sm" name="course_id">{% for c in all_courses %}<option value="{{ c.id }}">{{ c.code }} - {{ c.name }}</option>{% endfor %}</select>
+        <button class="btn btn-sm btn-outline-primary" name="action" value="add">Enroll</button>
+        <button class="btn btn-sm btn-outline-danger" name="action" value="remove">Remove</button>
+      </form>{% endif %}
+    </div>
+  </div>
+  <div class="col-lg-7"><div class="card"><div class="card-header">Attendance history</div>
+    <div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Date</th><th>Course</th><th>Status</th><th>Time</th><th>Confidence</th><th>Method</th></tr></thead><tbody>
+    {% for r in history %}<tr><td>{{ r.date.strftime('%d-%m-%Y') }}</td><td>{{ r.course.code }}</td><td>{{ status_badge(r.status) }}</td>
+    <td>{{ r.marked_at.strftime('%H:%M') if r.marked_at else '--' }}</td><td>{{ '%.2f'|format(r.confidence) if r.confidence is not none else '' }}</td><td class="small text-muted">{{ r.method }}</td></tr>
+    {% else %}<tr><td colspan="6" class="text-muted">No attendance records.</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+</div>
+{% endblock %}

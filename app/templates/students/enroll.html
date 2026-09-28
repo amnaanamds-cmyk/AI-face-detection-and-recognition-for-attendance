@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="h3">Face registration <small class="text-muted">{{ student.name }} ({{ student.student_code }})</small></h1>
+{% if not student.consent_given %}
+<div class="alert alert-danger">Biometric consent is not recorded for this student. <a href="/students/{{ student.id }}/edit">Record consent</a> before registering the face.</div>
+{% endif %}
+<p class="text-muted">Stored templates: <strong id="count">{{ templates_count }}</strong>. Capture at least {{ min_images }} images with slightly different angles
+(front, a little left, a little right) and normal lighting. Only the numeric face embedding is stored (encrypted); the photos are discarded.</p>
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card"><div class="card-body">
+      <div class="video-wrap"><video id="video" autoplay playsinline muted></video></div>
+      <div class="d-flex gap-2 mt-3 flex-wrap">
+        <button class="btn btn-outline-primary" id="btnCam"><i class="bi bi-camera-video"></i> Start camera</button>
+        <button class="btn btn-primary" id="btnSnap" disabled><i class="bi bi-camera"></i> Capture</button>
+        <button class="btn btn-outline-primary" id="btnAuto" disabled>Auto-capture 5</button>
+        <button class="btn btn-success ms-auto" id="btnSave" disabled><i class="bi bi-cloud-upload"></i> Save face (<span id="n">0</span>)</button>
+      </div>
+      <div id="thumbs" class="d-flex flex-wrap gap-2 mt-3"></div>
+      <div id="result" class="mt-3"></div>
+    </div></div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card"><div class="card-header">Or upload photos</div><div class="card-body">
+      <form method="post" action="/students/{{ student.id }}/faces/upload" enctype="multipart/form-data">
+        <input class="form-control mb-2" type="file" name="files" accept="image/*" multiple required>
+        <button class="btn btn-outline-primary">Upload &amp; register</button>
+      </form>
+      <p class="small text-muted mt-2 mb-0">Each photo must contain exactly one clearly visible face.</p>
+    </div></div>
+    <a class="btn btn-link mt-2" href="/students/{{ student.id }}">&larr; Back to student</a>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/camera.js"></script>
+<script>
+const shots = [];
+const cam = new Camera(document.getElementById('video'));
+const $ = id => document.getElementById(id);
+function add(dataUrl) {
+  shots.push(dataUrl);
+  const img = new Image(); img.src = dataUrl; img.className = 'thumb'; $('thumbs').appendChild(img);
+  $('n').textContent = shots.length; $('btnSave').disabled = false;
+}
+$('btnCam').onclick = async () => { try { await cam.start(); $('btnSnap').disabled = $('btnAuto').disabled = false; } catch (e) { alert('Camera error: ' + e.message); } };
+$('btnSnap').onclick = () => add(cam.capture(0.92));
+$('btnAuto').onclick = async () => { for (let i = 0; i < 5; i++) { add(cam.capture(0.92)); await new Promise(r => setTimeout(r, 700)); } };
+$('btnSave').onclick = async () => {
+  $('btnSave').disabled = true;
+  const res = await fetch('/api/students/{{ student.id }}/faces', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({images: shots})});
+  const data = await res.json();
+  if (!res.ok) { $('result').innerHTML = `<div class="alert alert-danger">${data.detail}</div>`; $('btnSave').disabled = false; return; }
+  $('count').textContent = data.total_templates;
+  $('result').innerHTML = `<div class="alert alert-${data.accepted ? 'success' : 'warning'}">✓ ${data.accepted} template(s) registered.` +
+    (data.rejected.length ? '<br><small>Skipped: ' + data.rejected.join('; ') + '</small>' : '') + '</div>';
+  shots.length = 0; $('thumbs').innerHTML = ''; $('n').textContent = 0;
+};
+</script>
+{% endblock %}

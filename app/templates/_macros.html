@@ -1,0 +1,15 @@
+{% macro status_badge(status) -%}
+{%- set s = status.value if status.value is defined else status -%}
+{%- set colors = {"present": "success", "late": "warning", "absent": "danger", "excused": "info", "leave": "secondary"} -%}
+<span class="badge text-bg-{{ colors.get(s, 'light') }}">{{ s|title }}</span>
+{%- endmacro %}
+
+{% macro pct(v) -%}
+{%- if v is none -%}<span class="text-muted">--</span>
+{%- else -%}<span class="fw-semibold {{ 'text-danger' if v < 75 else 'text-success' }}">{{ '%.1f'|format(v) }}%</span>{%- endif -%}
+{%- endmacro %}
+
+{% macro session_state(state) -%}
+{%- set s = state.value -%}
+<span class="badge text-bg-{{ {'scheduled': 'secondary', 'active': 'success', 'closed': 'dark'}[s] }}">{{ s|title }}</span>
+{%- endmacro %}

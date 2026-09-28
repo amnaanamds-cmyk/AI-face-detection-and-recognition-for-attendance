@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% from "_macros.html" import session_state %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Attendance sessions</h1>
+  <a class="btn btn-primary" href="/sessions/new"><i class="bi bi-plus-lg"></i> Create session</a>
+</div>
+<div class="card"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>Date</th><th>Time</th><th>Course</th><th>Rules</th><th>Liveness</th><th>Records</th><th>State</th><th></th></tr></thead><tbody>
+  {% for s in sessions %}
+  <tr><td>{{ s.date.strftime('%d %b %Y') }}</td><td>{{ s.start_time.strftime('%H:%M') }}–{{ s.end_time.strftime('%H:%M') }}</td>
+  <td>{{ s.course.code }} {{ s.course.name }}</td><td class="small text-muted">P ≤{{ s.present_window_minutes }}m, L ≤{{ s.late_window_minutes }}m</td>
+  <td>{{ '<i class="bi bi-shield-check text-success"></i>'|safe if s.liveness_required else '<i class="bi bi-shield-x text-muted"></i>'|safe }}</td>
+  <td>{{ s.attendance|length }}</td><td>{{ session_state(s.state) }}</td>
+  <td class="text-end">{% if s.state.value != 'closed' %}<a class="btn btn-sm btn-success" href="/sessions/{{ s.id }}/live">Live</a>{% endif %}
+  <a class="btn btn-sm btn-outline-secondary" href="/sessions/{{ s.id }}">Details</a></td></tr>
+  {% else %}<tr><td colspan="8" class="text-muted">No sessions yet.</td></tr>{% endfor %}
+  </tbody></table></div></div>
+{% endblock %}

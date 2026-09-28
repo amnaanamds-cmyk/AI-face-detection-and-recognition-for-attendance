@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="h3 mb-3">AI audit log <small class="text-muted">last 300 recognition decisions</small></h1>
+<div class="card"><div class="table-responsive"><table class="table table-sm mb-0">
+  <thead><tr><th>Time</th><th>Session</th><th>Event</th><th>Student</th><th>Similarity</th><th>Liveness</th></tr></thead><tbody>
+  {% set colors = {'marked': 'success', 'duplicate': 'secondary', 'unknown': 'warning', 'spoof': 'danger'} %}
+  {% for e in events %}<tr><td>{{ e.created_at.strftime('%d-%m-%Y %H:%M:%S') }}</td><td>{% if e.session_id %}<a href="/sessions/{{ e.session_id }}">#{{ e.session_id }}</a>{% endif %}</td>
+  <td><span class="badge text-bg-{{ colors.get(e.event, 'light') }}">{{ e.event }}</span></td><td>{{ e.student.name if e.student else '' }}</td>
+  <td>{{ '%.3f'|format(e.similarity) if e.similarity is not none else '' }}</td><td>{{ '%.2f'|format(e.liveness_score) if e.liveness_score is not none else '' }}</td></tr>
+  {% else %}<tr><td colspan="6" class="text-muted">No events yet.</td></tr>{% endfor %}
+  </tbody></table></div></div>
+{% endblock %}

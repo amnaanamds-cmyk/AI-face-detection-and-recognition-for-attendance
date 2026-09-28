@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Courses</h1>
+  {% if user.role.value == 'admin' %}<a class="btn btn-primary" href="/courses/new"><i class="bi bi-plus-lg"></i> Add course</a>{% endif %}
+</div>
+<div class="card"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
+  <thead><tr><th>Code</th><th>Name</th><th>Teacher</th><th>Sem/Sec</th><th>Students</th><th></th></tr></thead><tbody>
+  {% for c in courses %}
+  <tr><td class="fw-semibold">{{ c.code }}</td><td>{{ c.name }}</td><td>{{ c.teacher.full_name if c.teacher else '—' }}</td>
+  <td>{{ c.semester }}{{ c.section }}</td><td>{{ c.enrollments|length }}</td>
+  <td class="text-end"><a class="btn btn-sm btn-success" href="/sessions/new?course_id={{ c.id }}"><i class="bi bi-camera-video"></i> Start attendance</a>
+  <a class="btn btn-sm btn-outline-secondary" href="/courses/{{ c.id }}">Open</a></td></tr>
+  {% else %}<tr><td colspan="6" class="text-muted">No courses yet.</td></tr>{% endfor %}
+  </tbody></table></div></div>
+{% endblock %}

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <link href="/static/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/vendor/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="/static/css/app.css" rel="stylesheet">
+  {% block head %}{% endblock %}
+</head>
+<body>
+{% if user %}
+<nav class="navbar navbar-expand-xl navbar-dark bg-primary-subtle-dark shadow-sm">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-semibold" href="/"><i class="bi bi-person-bounding-box me-1"></i>{{ app_name }}</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav"><span class="navbar-toggler-icon"></span></button>
+    <div class="collapse navbar-collapse" id="nav">
+      <ul class="navbar-nav me-auto">
+        {% if user.role.value in ['admin', 'teacher'] %}
+        <li class="nav-item"><a class="nav-link" href="/"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+        <li class="nav-item"><a class="nav-link" href="/sessions"><i class="bi bi-camera-video"></i> Attendance</a></li>
+        <li class="nav-item"><a class="nav-link" href="/students"><i class="bi bi-people"></i> Students</a></li>
+        <li class="nav-item"><a class="nav-link" href="/courses"><i class="bi bi-journal-bookmark"></i> Courses</a></li>
+        <li class="nav-item"><a class="nav-link" href="/analytics"><i class="bi bi-graph-up"></i> Analytics</a></li>
+        <li class="nav-item"><a class="nav-link" href="/reports"><i class="bi bi-file-earmark-spreadsheet"></i> Reports</a></li>
+        <li class="nav-item"><a class="nav-link" href="/notifications"><i class="bi bi-bell"></i> Alerts</a></li>
+        {% endif %}
+        {% if user.role.value == 'admin' %}
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="bi bi-gear"></i> Admin</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="/users">Users &amp; roles</a></li>
+            <li><a class="dropdown-item" href="/settings">System settings</a></li>
+            <li><a class="dropdown-item" href="/audit">AI audit log</a></li>
+          </ul>
+        </li>
+        {% endif %}
+        {% if user.role.value == 'student' %}
+        <li class="nav-item"><a class="nav-link" href="/me"><i class="bi bi-person-check"></i> My attendance</a></li>
+        {% endif %}
+      </ul>
+      <span class="navbar-text me-3 small"><i class="bi bi-person-circle"></i> {{ user.full_name }} <span class="badge text-bg-light">{{ user.role.value }}</span></span>
+      <a class="btn btn-sm btn-outline-light me-2" href="/account/password">Password</a>
+      <a class="btn btn-sm btn-light" href="/logout">Logout</a>
+    </div>
+  </div>
+</nav>
+{% endif %}
+<main class="container-fluid py-4 px-md-4">
+  {% for category, message in flashes %}
+  <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+    {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+  {% block content %}{% endblock %}
+</main>
+<script src="/static/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

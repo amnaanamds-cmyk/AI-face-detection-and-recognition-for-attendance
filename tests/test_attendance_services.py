@@ -147,3 +147,33 @@ def test_enrollment_stores_only_encrypted_embeddings(db):
     assert bad.accepted == 0 and faces.count_templates(db, s2.id) == 0
     g = faces.load_gallery(db)
     assert len(g) == 3 and set(g.labels.tolist()) == {s1.id}
+
+
+def test_alert_resolved_when_attendance_recovers(db):
+    course, students, sess = make_course(db, n_students=1)
+    db.delete(sess)
+    db.commit()
+    st = students[0]
+    days = [date(2026, 9, 1) + timedelta(days=d) for d in range(9)]
+    for i, day in enumerate(days):
+        s = ClassSession(course_id=course.id, date=day, start_time=datetime.combine(day, START.time()),
+                         state=SessionState.active)
+        db.add(s)
+        db.commit()
+        if i >= 3:  # absent for the first 3 classes, then always present
+            att.mark_attendance(db, s, st.id, when=s.start_time)
+        att.close_session(db, s)
+        if i == 2:
+            assert db.query(Notification).filter_by(student_id=st.id, is_read=False).count() == 1
+    # 6/9 = 66.7 % -> still below 75 %; one more class would not yet recover it
+    assert db.query(Notification).filter_by(student_id=st.id, is_read=False).count() == 1
+    for d in range(9, 12):
+        day = date(2026, 9, 1) + timedelta(days=d)
+        s = ClassSession(course_id=course.id, date=day, start_time=datetime.combine(day, START.time()),
+                         state=SessionState.active)
+        db.add(s)
+        db.commit()
+        att.mark_attendance(db, s, st.id, when=s.start_time)
+        att.close_session(db, s)
+    # 9/12 = 75 % -> recovered, the old warning is resolved
+    assert db.query(Notification).filter_by(student_id=st.id, is_read=False).count() == 0

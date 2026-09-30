@@ -36,6 +36,7 @@ def my_attendance(request: Request, user: User = Depends(current_user), db: Sess
         select(Attendance).where(Attendance.student_id == user.student_id).order_by(Attendance.date.desc()).limit(50)
     ).all()
     notes = db.scalars(
-        select(Notification).where(Notification.student_id == user.student_id).order_by(Notification.created_at.desc())
+        select(Notification).where(Notification.student_id == user.student_id, Notification.is_read.is_(False))
+        .order_by(Notification.created_at.desc())
     ).all()
     return render(request, "me.html", user, s=summary, history=history, notes=notes, student=user.student)

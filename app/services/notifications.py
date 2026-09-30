@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import logging
 import smtplib
-from datetime import timedelta
 from email.message import EmailMessage
 
 from sqlalchemy import select
@@ -47,19 +46,23 @@ def check_low_attendance(db: Session, course_id: int) -> list[Notification]:
     for row in course_summary(db, course_id)["rows"]:
         student, pct = row["student"], row["rate"]
         counted = row["total"] - row["excused"] - row["leave"]
-        if pct is None or counted < MIN_SESSIONS_FOR_ALERT or pct >= threshold:
+        if pct is not None and pct >= threshold:
+            # attendance recovered: older unread warnings for this course are no longer current
+            for old in db.scalars(select(Notification).where(
+                    Notification.student_id == student.id, Notification.course_id == course_id,
+                    Notification.is_read.is_(False))).all():
+                old.is_read = True
             continue
-        recent = db.scalar(
-            select(Notification).where(
-                Notification.student_id == student.id,
-                Notification.course_id == course_id,
-                Notification.created_at >= now() - timedelta(days=1),
-            )
-        )
-        if recent:
+        if pct is None or counted < MIN_SESSIONS_FOR_ALERT:
             continue
         text = (f"Attendance alert - {student.name} ({student.student_code}) has {pct:.1f}% attendance in "
                 f"{course.code} {course.name}, below the configured threshold of {threshold:.0f}%.")
+        current = db.scalar(select(Notification).where(
+            Notification.student_id == student.id, Notification.course_id == course_id,
+            Notification.is_read.is_(False)))
+        if current:  # one live alert per student and course, kept up to date
+            current.message, current.created_at = text, now()
+            continue
         n = Notification(student_id=student.id, course_id=course_id, level="warning", message=text)
         db.add(n)
         created.append(n)

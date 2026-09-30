@@ -14,7 +14,7 @@ function startLive(sessionId) {
     ctx.lineWidth = 3; ctx.font = '600 18px system-ui';
     for (const f of faces) {
       let [x, y, w, h] = f.bbox.map(v => v / scale);
-      x = overlay.width - x - w;                     // mirror to match the preview
+      if (cam.mirrored) x = overlay.width - x - w;   // match the mirrored selfie preview
       const color = COLORS[f.state] || '#fff';
       ctx.strokeStyle = color; ctx.strokeRect(x, y, w, h);
       const text = f.label + (f.liveness === 'checking' ? ' · checking liveness' : '');
@@ -63,11 +63,16 @@ function startLive(sessionId) {
 
   $('btnStart').onclick = async () => {
     const [w, h] = $('res').value.split('x').map(Number);
-    try { await cam.start(w, h); } catch (e) { $('status').textContent = 'Camera error: ' + e.message; return; }
+    try { await cam.start(w, h, $('facing') ? $('facing').value : 'user'); } catch (e) { $('status').textContent = 'Camera error: ' + e.message; return; }
     $('btnStart').disabled = true; $('btnStop').disabled = false;
     timer = setInterval(tick, +$('fps').value);
   };
   $('btnStop').onclick = stop;
+  if ($('facing')) $('facing').onchange = async () => {
+    if (!cam.running) return;
+    const [w, h] = $('res').value.split('x').map(Number);
+    try { await cam.start(w, h, $('facing').value); } catch (e) { $('status').textContent = 'Camera error: ' + e.message; }
+  };
   $('fps').onchange = () => { if (timer) { clearInterval(timer); timer = setInterval(tick, +$('fps').value); } };
   fetch(`/api/sessions/${sessionId}/summary`).then(r => r.json()).then(s => render({faces: [], summary: s}));
 }

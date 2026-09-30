@@ -1,11 +1,12 @@
 @echo off
-REM One-click start on Windows. Add --lan to serve classroom devices over HTTPS.
+REM One-click start on Windows. Add --lan to serve phones / classroom devices over HTTPS.
 setlocal
 cd /d "%~dp0"
 title Smart Classroom Attendance
 
-REM Setup is complete only when this marker exists (a half-finished .venv is rebuilt).
-if exist ".venv\setup-complete.txt" goto run
+REM Setup is complete only when a marker exists (a half-finished .venv is rebuilt).
+if exist ".venv\setup-complete.txt" goto run_venv
+if exist "setup-system-python.txt" goto run_system
 
 echo ============================================================
 echo  First-time setup (needs internet, takes 3-10 minutes)
@@ -27,10 +28,33 @@ if exist ".venv" (
   echo Removing an incomplete setup from an earlier attempt...
   rmdir /s /q ".venv"
 )
+
 echo Creating virtual environment...
 %PY% -m venv .venv
-if not exist ".venv\Scripts\python.exe" goto venvfail
+if exist ".venv\Scripts\python.exe" goto install_venv
 
+REM Some Python installs (e.g. 3.14 from the new "Python install manager") lack the
+REM files the built-in venv needs. Try the virtualenv tool instead.
+echo.
+echo The built-in venv failed - trying "virtualenv" instead...
+if exist ".venv" rmdir /s /q ".venv"
+%PY% -m pip install --user --quiet --upgrade virtualenv
+%PY% -m virtualenv .venv
+if exist ".venv\Scripts\python.exe" goto install_venv
+
+REM Last resort: install the libraries for this Windows user and run without a venv.
+echo.
+echo virtualenv also failed - installing the libraries directly for this user instead...
+if exist ".venv" rmdir /s /q ".venv"
+%PY% -m pip install --user --upgrade pip
+%PY% -m pip install --user -r requirements.txt
+if errorlevel 1 goto pipfail
+echo %PY%> "setup-system-python.txt"
+echo.
+echo Setup finished.
+goto run_system
+
+:install_venv
 echo Installing libraries...
 ".venv\Scripts\python.exe" -m pip install --upgrade pip
 ".venv\Scripts\python.exe" -m pip install -r requirements.txt
@@ -40,8 +64,16 @@ echo.
 echo Setup finished.
 echo.
 
-:run
+:run_venv
 ".venv\Scripts\python.exe" run.py %*
+goto stopped
+
+:run_system
+set /p PY=<"setup-system-python.txt"
+%PY% run.py %*
+goto stopped
+
+:stopped
 echo.
 echo The server has stopped. If you see an error above, copy it and ask for help.
 pause
@@ -50,7 +82,8 @@ exit /b 0
 :nopython
 echo ERROR: Python was not found.
 echo.
-echo  1. Download Python 3.11 from https://www.python.org/downloads/
+echo  1. Download Python 3.12 from https://www.python.org/downloads/windows/
+echo     ("Windows installer (64-bit)")
 echo  2. In the installer, TICK "Add python.exe to PATH" (bottom of the first screen)
 echo  3. Close this window and double-click start.bat again
 echo.
@@ -62,19 +95,16 @@ exit /b 1
 :oldpython
 echo ERROR: Python 3.10 or newer is required. Found:
 %PY% --version
-echo Install Python 3.11 from https://www.python.org/downloads/ (tick "Add python.exe to PATH").
-pause
-exit /b 1
-
-:venvfail
-echo ERROR: could not create the virtual environment (.venv).
-echo Move this folder to a simple path such as C:\attendance and try again.
+echo Install Python 3.12 from https://www.python.org/downloads/windows/ (tick "Add python.exe to PATH").
 pause
 exit /b 1
 
 :pipfail
 echo.
 echo ERROR: installing the libraries failed (see the messages above).
-echo Check your internet connection and run start.bat again.
+echo  - Check your internet connection and run start.bat again.
+echo  - If the messages mention "Microsoft Visual C++" or "building wheel", your Python
+echo    version is too new for some library: install Python 3.12 from
+echo    https://www.python.org/downloads/windows/ and delete the .venv folder.
 pause
 exit /b 1

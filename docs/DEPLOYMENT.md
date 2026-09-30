@@ -20,13 +20,19 @@ Camera placement matters more than anything else:
 
 **Option A: single PC (SQLite, simplest)**
 
-```bash
-./start.sh --lan          # Windows: start.bat --lan
-```
+Windows: double-click **`start-mobile.bat`**. Linux/macOS: `./start.sh --lan`.
+If Windows Firewall asks, allow Python on **private networks**.
 
-Open the printed `https://<server-ip>:8443` address on the classroom device. Accept the certificate
-warning once, or install `data/tls/cert.pem` as a trusted certificate on the classroom devices. For a
-real domain certificate, use `python run.py --cert fullchain.pem --key privkey.pem`.
+It prints two addresses: `https://localhost:8443` for the server PC itself, and
+`https://<server-ip>:8443` for phones and classroom devices on the same Wi-Fi.
+Open **https://localhost:8443/mobile** on the PC. It shows a QR code for the phones and the
+certificate each phone installs once, with Android and iPhone instructions. After that the phone
+trusts the server, and the app can be installed from the browser (**Install app** /
+**Add to Home Screen**).
+
+On the PC itself, either accept the browser warning once, or double-click
+`data\tls\ca.pem` → *Install Certificate* → *Local Machine* → *Trusted Root Certification Authorities*.
+For a real domain certificate, use `python run.py --cert fullchain.pem --key privkey.pem`.
 
 **Option B: server with PostgreSQL (Docker)**
 

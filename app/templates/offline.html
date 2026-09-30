@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="text-center mt-5">
+  <i class="bi bi-wifi-off display-3 text-secondary"></i>
+  <h1 class="h4 mt-3">Server not reachable</h1>
+  <p class="text-muted">Make sure this phone is on the same Wi-Fi as the attendance server and that the server is running.</p>
+  <button class="btn btn-primary" onclick="location.reload()">Try again</button>
+</div>
+{% endblock %}

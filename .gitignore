@@ -11,3 +11,4 @@ exports/
 *.log
 .DS_Store
 backups/
+setup-system-python.txt

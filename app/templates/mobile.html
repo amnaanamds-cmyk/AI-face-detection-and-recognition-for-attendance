@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Mobile app - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center"><div class="col-lg-9 col-xl-8">
+<h1 class="h3 mb-1"><i class="bi bi-phone"></i> Mobile app setup</h1>
+<p class="text-muted">Use the system on Android phones, iPhones and tablets: teachers take attendance with the phone camera,
+students check their own attendance. The app installs from the browser, with no app store needed.</p>
+
+{% if not url %}
+<div class="alert alert-warning">
+  <strong>Phones cannot connect yet.</strong> On the server PC, close the current window and start the system with
+  <code>start-mobile.bat</code> (Windows) or <code>./start.sh --lan</code> (Linux/macOS). Then open this page again.
+  It will show a QR code for your phones.
+</div>
+{% else %}
+<div class="card mb-3"><div class="card-body d-md-flex align-items-center gap-4">
+  <img src="/mobile/qr.svg" alt="QR code" class="border rounded" style="width:220px;height:220px">
+  <div class="mt-3 mt-md-0">
+    <div class="small text-muted">Scan with the phone camera, or type:</div>
+    <div class="fs-5 fw-semibold user-select-all">{{ url }}</div>
+    <div class="small text-muted mt-2">The phone must be on the <strong>same Wi-Fi</strong> as this server.</div>
+  </div>
+</div></div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-md-6"><div class="card h-100"><div class="card-header"><i class="bi bi-android2 text-success"></i> Android (Chrome)</div><div class="card-body small">
+    <ol class="ps-3 mb-0">
+      {% if has_ca %}<li class="mb-2"><strong>Trust the server (once per phone):</strong> <a href="/mobile/attendance-ca.crt">download the certificate</a>, then open
+        <em>Settings → Security → More security settings → Encryption &amp; credentials → Install a certificate → CA certificate</em>
+        and choose <code>attendance-ca.crt</code>. On some phones the path is <em>Settings → Security → Install from storage</em>.</li>{% endif %}
+      <li class="mb-2">Open the address above in <strong>Chrome</strong> and log in.</li>
+      <li class="mb-2">Tap <strong>Install app</strong> (top bar) or Chrome menu <strong>⋮ → Install app / Add to Home screen</strong>.</li>
+      <li>Open <strong>Attendance</strong> from the home screen. It runs full-screen like a normal app.</li>
+    </ol></div></div></div>
+  <div class="col-md-6"><div class="card h-100"><div class="card-header"><i class="bi bi-apple"></i> iPhone / iPad (Safari)</div><div class="card-body small">
+    <ol class="ps-3 mb-0">
+      {% if has_ca %}<li class="mb-2"><strong>Trust the server (once per device):</strong> open this page in <strong>Safari</strong>,
+        <a href="/mobile/attendance-ca.crt">download the certificate</a> and tap <em>Allow</em>. Then go to <em>Settings → Profile Downloaded → Install</em>,
+        and after that <em>Settings → General → About → Certificate Trust Settings</em> and switch it <strong>on</strong>.</li>{% endif %}
+      <li class="mb-2">Open the address above in <strong>Safari</strong> and log in.</li>
+      <li class="mb-2">Tap <strong>Share <i class="bi bi-box-arrow-up"></i> → Add to Home Screen</strong>.</li>
+      <li>Open <strong>Attendance</strong> from the home screen.</li>
+    </ol></div></div></div>
+</div>
+
+<div class="card mt-3"><div class="card-header">Using the app</div><div class="card-body small">
+  <ul class="mb-0 ps-3">
+    <li><strong>Teacher:</strong> Attendance → Create session → <em>Create &amp; start</em> → choose <em>Back camera</em> → point the phone at the class.
+      On a stand or tripod, 2 frames per second, 720p.</li>
+    <li><strong>Face registration on a phone:</strong> Students → student → Register face → <em>Flip</em> to choose the camera.</li>
+    <li><strong>Student:</strong> log in with the Student ID to see attendance percentage, history and warnings.</li>
+    <li>If you skip the certificate step, the browser shows a security warning. Tap <em>Advanced → Proceed</em>; the camera still works,
+      but the app cannot be installed and each visit shows the warning again.</li>
+  </ul>
+</div></div>
+</div></div>
+{% endblock %}

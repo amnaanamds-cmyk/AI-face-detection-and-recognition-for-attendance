@@ -1,6 +1,6 @@
 # Web backend
 fastapi>=0.110
-uvicorn[standard]>=0.29
+uvicorn>=0.29
 python-multipart>=0.0.9
 itsdangerous>=2.1
 jinja2>=3.1
@@ -9,6 +9,9 @@ sqlalchemy>=2.0
 # AI / computer vision
 numpy>=1.26
 opencv-python-headless>=4.8   # provides cv2.FaceDetectorYN (YuNet) and cv2.FaceRecognizerSF (SFace)
+
+# QR code on the "Mobile setup" page (pure Python)
+segno>=1.5
 
 # Security (encryption of stored face embeddings)
 cryptography>=41

@@ -18,7 +18,7 @@ from app import database
 from app.config import settings
 from app.deps import Forbidden, NotAuthenticated, render
 from app.models import Role, User
-from app.routers import admin, analytics, auth, courses, dashboard, imports, reports, sessions, students
+from app.routers import admin, analytics, auth, courses, dashboard, imports, mobile, reports, sessions, students
 from app.security import hash_password
 
 log = logging.getLogger("attendance")
@@ -48,7 +48,7 @@ def create_app() -> FastAPI:
                        session_cookie="attendance_session", max_age=8 * 3600)
     app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 
-    for r in (auth, dashboard, imports, students, courses, sessions, analytics, reports, admin):
+    for r in (mobile, auth, dashboard, imports, students, courses, sessions, analytics, reports, admin):
         app.include_router(r.router)
 
     @app.exception_handler(NotAuthenticated)

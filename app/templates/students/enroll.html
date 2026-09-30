@@ -12,6 +12,7 @@
       <div class="video-wrap"><video id="video" autoplay playsinline muted></video></div>
       <div class="d-flex gap-2 mt-3 flex-wrap">
         <button class="btn btn-outline-primary" id="btnCam"><i class="bi bi-camera-video"></i> Start camera</button>
+        <button class="btn btn-outline-secondary" id="btnFlip" disabled title="Switch front / back camera"><i class="bi bi-arrow-repeat"></i> Flip</button>
         <button class="btn btn-primary" id="btnSnap" disabled><i class="bi bi-camera"></i> Capture</button>
         <button class="btn btn-outline-primary" id="btnAuto" disabled>Auto-capture 5</button>
         <button class="btn btn-success ms-auto" id="btnSave" disabled><i class="bi bi-cloud-upload"></i> Save face (<span id="n">0</span>)</button>
@@ -43,7 +44,8 @@ function add(dataUrl) {
   const img = new Image(); img.src = dataUrl; img.className = 'thumb'; $('thumbs').appendChild(img);
   $('n').textContent = shots.length; $('btnSave').disabled = false;
 }
-$('btnCam').onclick = async () => { try { await cam.start(); $('btnSnap').disabled = $('btnAuto').disabled = false; } catch (e) { alert('Camera error: ' + e.message); } };
+$('btnCam').onclick = async () => { try { await cam.start(); $('btnSnap').disabled = $('btnAuto').disabled = $('btnFlip').disabled = false; } catch (e) { alert('Camera error: ' + e.message); } };
+$('btnFlip').onclick = async () => { try { await cam.switchCamera(); } catch (e) { alert('Camera error: ' + e.message); } };
 $('btnSnap').onclick = () => add(cam.capture(0.92));
 $('btnAuto').onclick = async () => { for (let i = 0; i < 5; i++) { add(cam.capture(0.92)); await new Promise(r => setTimeout(r, 700)); } };
 $('btnSave').onclick = async () => {

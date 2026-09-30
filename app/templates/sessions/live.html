@@ -4,7 +4,9 @@
   <div><h1 class="h4 mb-0"><span class="live-dot"></span> Live attendance — {{ session.course.code }} {{ session.course.name }}</h1>
   <div class="text-muted small">{{ session.date.strftime('%d %B %Y') }}, starts {{ session.start_time.strftime('%H:%M') }} &middot; Present ≤ {{ session.present_window_minutes }} min, Late ≤ {{ session.late_window_minutes }} min
    &middot; Liveness: <strong>{{ 'ON' if session.liveness_required else 'OFF' }}</strong></div></div>
-  <div class="d-flex gap-2">
+  <div class="d-flex gap-2 flex-wrap live-controls">
+    <select id="facing" class="form-select form-select-sm" style="width:auto" title="Which camera to use (phones / tablets)">
+      <option value="user">Front camera</option><option value="environment">Back camera</option></select>
     <select id="res" class="form-select form-select-sm" style="width:auto" title="Camera resolution - use 1080p for large classrooms">
       <option value="1280x720" selected>720p</option><option value="1920x1080">1080p (large room)</option><option value="640x480">480p (slow PC)</option></select>
     <select id="fps" class="form-select form-select-sm" style="width:auto"><option value="1000">1 fps</option><option value="500" selected>2 fps</option><option value="300">3 fps</option></select>

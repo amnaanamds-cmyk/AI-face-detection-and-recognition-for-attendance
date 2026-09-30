@@ -38,19 +38,22 @@ python scripts/download_models.py                       # YuNet + SFace + anti-s
 python run.py                                           # http://127.0.0.1:8000
 ```
 
-**Classroom use (camera on another PC, laptop, tablet or phone):**
+## 1a. Mobile app (Android / iPhone) and web app
 
-```bash
-python run.py --lan            # or: start.bat --lan / ./start.sh --lan
-#   -> prints  https://<server-ip>:8443   open this on the classroom device
-```
+The same system is a **web app** on PCs and an **installable mobile app** (PWA) on phones and
+tablets. It gets a home-screen icon, runs full-screen, works with the front and back camera, and
+shows an offline screen when the server can't be reached. No app store is needed.
 
-Browsers only allow camera access on `localhost` or over HTTPS, so `--lan` creates a certificate
-for your server's IP. On first visit, accept the browser warning once, or install
-`data/tls/cert.pem` as trusted on the classroom devices. Other options:
-- Server with PostgreSQL: `docker compose up -d` (see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)).
-- Camera attached to the server itself: `python scripts/webcam_attendance.py --session <id>`
-  (also accepts an IP camera `rtsp://` URL).
+1. On the server PC, start it with **`start-mobile.bat`** (Windows) or **`./start.sh --lan`**.
+   The window prints the phone address, e.g. `https://192.168.1.10:8443`. If Windows asks,
+   **allow Python on private networks**.
+2. On that PC, open **https://localhost:8443/mobile**. It shows a **QR code** for the phones and a
+   certificate to install once per phone (step-by-step instructions for Android and iPhone are on the page).
+3. On the phone (same Wi-Fi): scan the QR code, log in, then tap **Install app** (Android Chrome) or
+   **Share → Add to Home Screen** (iPhone Safari).
+
+- **Teachers** use the phone's back camera to take attendance.
+- **Students** log in with their Student ID to see their attendance.
 
 Optional: `python scripts/seed_demo.py` adds demo data so the dashboard has something to show.
 
@@ -155,18 +158,19 @@ REAL_FACES_DIR=dataset_normal SPOOF_DIR=spoof_photos pytest tests/test_real_data
 pytest -q
 ```
 
-41 tests run without models or a camera, using a deterministic `FakeBackend`. They cover liveness (a
+45 tests run without models or a camera, using a deterministic `FakeBackend`. They cover liveness (a
 simulated 3-D head vs. a flat photo; CNN, motion and combined modes), matching, unknown and ambiguous
 faces, tracking (including a different student taking the same seat), voting, attendance windows,
 duplicate prevention (including the database constraint), closing sessions, Excel/CSV/ZIP import,
 duplicate-identity rejection, analytics, alerts, report exports, encryption, login lock-out,
-role-based access and an end-to-end web flow. `tests/test_real_data.py` runs the whole system on real
+role-based access, the mobile app files (manifest, service worker, icons), the phone certificate
+authority, and an end-to-end web flow. `tests/test_real_data.py` runs the whole system on real
 photos when `REAL_FACES_DIR` is set.
 
 ## 8. Project structure
 
 ```
-run.py, start.bat, start.sh   launchers (HTTP locally, HTTPS on the LAN)
+run.py, start.bat, start-mobile.bat, start.sh   launchers (HTTP locally, HTTPS for phones on the LAN)
 Dockerfile, docker-compose.yml
 app/
   main.py              FastAPI app, auth middleware, first-admin bootstrap
@@ -177,7 +181,8 @@ app/
   vision/              AI: backends (YuNet, SFace, anti-spoofing CNN), matcher, liveness, tracking pipeline
   services/            attendance rules, enrollment, import, analytics, reports, notifications, settings
   routers/             web pages + JSON API
-  templates/, static/  UI (Bootstrap, Chart.js vendored), camera + live overlay JS
+  templates/, static/  UI (Bootstrap, Chart.js vendored), camera + live overlay JS,
+                       PWA manifest, service worker and app icons (mobile app)
 scripts/               download_models, import_data, evaluate, evaluate_liveness, simulate_photo_attack,
                        webcam_attendance, backup, seed_demo
 tests/                 pytest suite (+ optional real-data end-to-end test)

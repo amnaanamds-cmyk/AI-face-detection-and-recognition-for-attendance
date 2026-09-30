@@ -3,8 +3,8 @@
 {% block content %}
 <div class="row justify-content-center"><div class="col-lg-9 col-xl-8">
 <h1 class="h3 mb-1"><i class="bi bi-phone"></i> Mobile app setup</h1>
-<p class="text-muted">Use the system on Android phones, iPhones and tablets: teachers take attendance with the phone camera,
-students check their own attendance. The app installs from the browser, with no app store needed.</p>
+<p class="text-muted">Use the system on Android phones, iPhones and tablets: {{ t.staffs|lower }} take attendance with the phone camera,
+{{ t.people|lower }} check their own attendance. The app installs from the browser, with no app store needed.</p>
 
 {% if not url %}
 <div class="alert alert-warning">
@@ -46,10 +46,10 @@ students check their own attendance. The app installs from the browser, with no 
 
 <div class="card mt-3"><div class="card-header">Using the app</div><div class="card-body small">
   <ul class="mb-0 ps-3">
-    <li><strong>Teacher:</strong> Attendance → Create session → <em>Create &amp; start</em> → choose <em>Back camera</em> → point the phone at the class.
+    <li><strong>{{ t.staff }}:</strong> Attendance → Create {{ t.session|lower }} → <em>Create &amp; start</em> → choose <em>Back camera</em> → point the phone at the class.
       On a stand or tripod, 2 frames per second, 720p.</li>
-    <li><strong>Face registration on a phone:</strong> Students → student → Register face → <em>Flip</em> to choose the camera.</li>
-    <li><strong>Student:</strong> log in with the Student ID to see attendance percentage, history and warnings.</li>
+    <li><strong>Face registration on a phone:</strong> {{ t.people }} → {{ t.person|lower }} → Register face → <em>Flip</em> to choose the camera.</li>
+    <li><strong>{{ t.person }}:</strong> log in with the {{ t.person_id }} to see attendance percentage, history and warnings.</li>
     <li>If you skip the certificate step, the browser shows a security warning. Tap <em>Advanced → Proceed</em>; the camera still works,
       but the app cannot be installed and each visit shows the warning again.</li>
   </ul>

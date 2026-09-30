@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings as env
 from app.models import (
+    Course,
     Attendance,
     AttendanceStatus,
     ClassSession,
@@ -23,6 +24,7 @@ from app.models import (
 )
 from app.services import app_settings, faces
 from app.services.notifications import check_low_attendance
+from app.terminology import terms
 from app.vision.backends import get_backend
 from app.vision.liveness import SPOOF, LivenessChecker
 from app.vision.pipeline import FaceTracker, RecognitionPipeline, is_accepted
@@ -36,6 +38,9 @@ def status_for_arrival(session: ClassSession, when: datetime) -> AttendanceStatu
         return AttendanceStatus.present
     if minutes <= session.late_window_minutes:
         return AttendanceStatus.late
+    org = session.course.org if session.course is not None else None
+    if org is not None and terms(org.kind).check_out:
+        return AttendanceStatus.late  # offices / gyms: a very late arrival is still an arrival
     return AttendanceStatus.absent
 
 
@@ -49,6 +54,19 @@ class MarkResult:
     duplicate: bool
     message: str
     record: Attendance | None = None
+    kind: str = "check_in"      # check_in | check_out
+
+
+def worked_minutes(rec: Attendance) -> int | None:
+    if rec.marked_at is None or rec.checked_out_at is None:
+        return None
+    return max(0, int((rec.checked_out_at - rec.marked_at).total_seconds() // 60))
+
+
+def format_duration(minutes: int | None) -> str:
+    if minutes is None:
+        return "--"
+    return f"{minutes // 60}h {minutes % 60:02d}m"
 
 
 def mark_attendance(
@@ -74,6 +92,17 @@ def mark_attendance(
         select(Attendance).where(Attendance.student_id == student_id, Attendance.session_id == session.id)
     )
     if existing:
+        org = student.org
+        if (org is not None and terms(org.kind).check_out and existing.marked_at is not None
+                and existing.status in (AttendanceStatus.present, AttendanceStatus.late)):
+            gap = float(app_settings.get_setting(db, org.id, "checkout_after_minutes"))
+            if (when - existing.marked_at).total_seconds() >= gap * 60:
+                # seen again later: check-out (the last sighting of the day counts)
+                existing.checked_out_at = when
+                student.last_seen_at = when
+                db.commit()
+                return MarkResult(True, True, f"{student.name}: checked out at {when:%H:%M} "
+                                  f"(on site {format_duration(worked_minutes(existing))})", existing, "check_out")
         return MarkResult(False, True, f"{student.name}: attendance already marked", existing)
 
     status = status_for_arrival(session, when)
@@ -90,6 +119,7 @@ def mark_attendance(
         note="arrived after late cut-off" if status == AttendanceStatus.absent else None,
     )
     db.add(rec)
+    student.last_seen_at = when
     try:
         db.commit()
     except IntegrityError:  # the UNIQUE(student, session) constraint caught a race
@@ -98,7 +128,10 @@ def mark_attendance(
             select(Attendance).where(Attendance.student_id == student_id, Attendance.session_id == session.id)
         )
         return MarkResult(False, True, f"{student.name}: attendance already marked", existing)
-    return MarkResult(True, False, f"{student.name}: {status.value.title()} at {when:%H:%M}", rec)
+    verb = "checked in" if terms(student.org.kind).check_out and student.org else status.value.title()
+    if status != AttendanceStatus.present and terms(student.org.kind).check_out:
+        verb = f"checked in ({status.value})"
+    return MarkResult(True, False, f"{student.name}: {verb} at {when:%H:%M}", rec)
 
 
 def set_status(db: Session, session: ClassSession, student_id: int, status: AttendanceStatus, note: str | None = None) -> Attendance:
@@ -136,6 +169,81 @@ def close_session(db: Session, session: ClassSession) -> int:
     return len(missing)
 
 
+# ------------------------------------------------------------------ scheduled groups & kiosk
+def _parse_hhmm(value: str):
+    return datetime.strptime(value, "%H:%M").time()
+
+
+def scheduled_today(course: Course, day) -> bool:
+    return bool(course.schedule_start) and str(day.weekday()) in (course.schedule_days or "").split(",")
+
+
+def get_or_open_today(db: Session, course: Course, when: datetime) -> ClassSession:
+    """Today's automatic session of a group (opened by the kiosk or the scheduler)."""
+    day = when.date()
+    sess = db.scalar(select(ClassSession).where(ClassSession.course_id == course.id, ClassSession.date == day,
+                                                ClassSession.created_by.is_(None))
+                     .order_by(ClassSession.start_time.desc()).limit(1))
+    if sess is not None and sess.state != SessionState.closed:
+        return sess
+    cfg = app_settings.all_settings(db, course.org_id)
+    if scheduled_today(course, day):
+        start, minutes = datetime.combine(day, _parse_hhmm(course.schedule_start)), course.schedule_minutes
+    else:  # unscheduled groups: open until midnight, arrival counts as on time
+        start, minutes = when.replace(second=0), max(5, int((datetime.combine(day, datetime.max.time()) - when).total_seconds() // 60))
+    sess = ClassSession(course_id=course.id, date=day, start_time=start, duration_minutes=minutes,
+                        present_window_minutes=int(cfg["present_window_minutes"]),
+                        late_window_minutes=int(cfg["late_window_minutes"]) if scheduled_today(course, day) else minutes,
+                        liveness_required=bool(cfg["liveness_enabled"]), state=SessionState.active, created_by=None)
+    db.add(sess)
+    db.commit()
+    return sess
+
+
+def sync_scheduled_sessions(db: Session, org_id: int, when: datetime | None = None) -> None:
+    """Open today's sessions of scheduled groups once they start (so absentees are recorded even if nobody
+    checks in) and close automatic sessions whose time is over."""
+    when = when or now()
+    for course in db.scalars(select(Course).where(Course.org_id == org_id, Course.schedule_start.is_not(None))).all():
+        if scheduled_today(course, when.date()) and when >= datetime.combine(when.date(), _parse_hhmm(course.schedule_start)):
+            exists = db.scalar(select(ClassSession.id).where(ClassSession.course_id == course.id,
+                                                             ClassSession.date == when.date(),
+                                                             ClassSession.created_by.is_(None)))
+            if not exists:
+                get_or_open_today(db, course, when)
+    due = db.scalars(select(ClassSession).join(Course).where(
+        Course.org_id == org_id, ClassSession.state == SessionState.active, ClassSession.created_by.is_(None))).all()
+    for sess in due:
+        if sess.end_time <= when:
+            close_session(db, sess)
+
+
+def general_group(db: Session, org_id: int) -> Course:
+    """Fallback group for people who are not in any group (e.g. gym members, visitors)."""
+    c = db.scalar(select(Course).where(Course.org_id == org_id, Course.code == "GENERAL"))
+    if c is None:
+        c = Course(org_id=org_id, code="GENERAL", name="General check-in", department="", section="A")
+        db.add(c)
+        db.commit()
+    return c
+
+
+def kiosk_session_for(db: Session, student: Student, when: datetime) -> ClassSession:
+    """Pick the right group session for a person seen at the kiosk."""
+    courses = [e.course for e in student.enrollments]
+    if not courses:
+        course = general_group(db, student.org_id)
+        db.add(Enrollment(student_id=student.id, course_id=course.id))
+        db.commit()
+        courses = [course]
+    today = [c for c in courses if scheduled_today(c, when.date())]
+    if today:  # the scheduled group whose start is closest to now
+        course = min(today, key=lambda c: abs((datetime.combine(when.date(), _parse_hhmm(c.schedule_start)) - when).total_seconds()))
+    else:
+        course = sorted(courses, key=lambda c: (c.code != "GENERAL", c.id))[-1]
+    return get_or_open_today(db, course, when)
+
+
 # ------------------------------------------------------------------ live recognition
 class _TrackerRegistry:
     """One face tracker per running session (in memory)."""
@@ -170,8 +278,8 @@ def resolve_liveness_mode(requested: str, backend) -> str:
     return requested
 
 
-def build_pipeline(db: Session) -> RecognitionPipeline:
-    cfg = app_settings.all_settings(db)
+def build_pipeline(db: Session, org_id: int) -> RecognitionPipeline:
+    cfg = app_settings.all_settings(db, org_id)
     backend = get_backend()
     checker = LivenessChecker(
         min_frames=env.liveness_min_frames,
@@ -194,35 +302,37 @@ def _log(db: Session, track, key: str, session_id: int, event: str, student_id=N
                             similarity=similarity, liveness_score=liveness))
 
 
-def process_frame(db: Session, session: ClassSession, frame: np.ndarray, t: float | None = None) -> dict:
-    """Run the AI pipeline on one camera frame and apply attendance rules."""
-    if session.state != SessionState.active:
-        return {"error": "Session is not active", "faces": []}
+def _recognize(db: Session, org_id: int, tracker_key: int, liveness_required: bool, frame: np.ndarray,
+               t: float | None, session_for, audit_session_id: int | None):
+    """Shared by the live session page and the kiosk: run the AI pipeline on one frame and apply the rules.
 
-    pipeline = build_pipeline(db)
-    gallery = faces.get_gallery(db)
-    tracker, lock = live_trackers.get(session.id)
+    ``session_for(student)`` returns the session a recognised person is marked in.
+    """
+    pipeline = build_pipeline(db, org_id)
+    gallery = faces.get_gallery(db, org_id)
+    tracker, lock = live_trackers.get(tracker_key)
     names = {}
+    events = []
     with lock:
-        results = pipeline.process(frame, gallery, tracker, session.liveness_required, t)
+        results = pipeline.process(frame, gallery, tracker, liveness_required, t)
         out = []
         for r in results:
             track = r.track
             sid = r.student_id or r.candidate_id
             if sid and sid not in names:
                 st = db.get(Student, sid)
-                names[sid] = (st.name, st.student_code) if st else ("?", "?")
+                names[sid] = (st.name, st.student_code) if st and st.org_id == org_id else ("?", "?")
 
             if r.liveness == SPOOF:
                 label, state = "Spoof suspected", "spoof"
                 track.outcome = "Rejected: liveness check failed" + (
                     f" - {track.liveness.reason}" if track.liveness.reason else "")
-                _log(db, track, "spoof", session.id, "spoof", sid, r.similarity, r.liveness_score)
+                _log(db, track, "spoof", audit_session_id, "spoof", sid, r.similarity, r.liveness_score)
             elif r.student_id is None:
                 if r.candidate_id is None and len(track.votes) == track.votes.maxlen and all(v is None for v, _ in track.votes):
                     label, state = "Unknown", "unknown"
                     track.outcome = "Face not registered"
-                    _log(db, track, "unknown", session.id, "unknown", None, r.similarity)
+                    _log(db, track, "unknown", audit_session_id, "unknown", None, r.similarity)
                 else:
                     label, state = "Identifying…", "checking"
             elif not is_accepted(r):
@@ -230,22 +340,27 @@ def process_frame(db: Session, session: ClassSession, frame: np.ndarray, t: floa
                 track.outcome = ("Liveness check: turn your head left, hold, then right"
                                  if "motion" in pipeline.liveness.mode else "Liveness check: please look at the camera")
             else:
-                label, state = names[r.student_id][0], "accepted"
+                label = names[r.student_id][0]
                 if not track.marked:
+                    student = db.get(Student, r.student_id)
+                    session = session_for(student)
                     res = mark_attendance(db, session, r.student_id, similarity=r.confirmed_similarity,
                                           liveness_score=r.liveness_score)
                     track.marked = True
                     track.outcome = res.message
-                    if res.ok:
+                    if res.ok and res.kind == "check_out":
+                        _log(db, track, "out", session.id, "check_out", r.student_id, r.confirmed_similarity, r.liveness_score)
+                        track.final_state = "checked_out"
+                    elif res.ok:
                         _log(db, track, "marked", session.id, "marked", r.student_id, r.confirmed_similarity, r.liveness_score)
-                        state = "marked"
+                        track.final_state = "marked"
                     elif res.duplicate:
                         _log(db, track, "dup", session.id, "duplicate", r.student_id, r.confirmed_similarity)
-                        state = "duplicate"
+                        track.final_state = "duplicate"
                     else:
-                        state = "rejected"
-                else:
-                    state = "duplicate" if "already" in track.outcome else "marked"
+                        track.final_state = "rejected"
+                    events.append({"name": label, "state": track.final_state, "message": track.outcome})
+                state = track.final_state
 
             out.append({
                 "track_id": r.track_id,
@@ -259,8 +374,26 @@ def process_frame(db: Session, session: ClassSession, frame: np.ndarray, t: floa
                 "message": track.outcome,
             })
         db.commit()
-    return {"faces": out, "summary": session_summary(db, session),
-            "liveness_mode": pipeline.liveness.mode if session.liveness_required else "off"}
+    return out, events, (pipeline.liveness.mode if liveness_required else "off")
+
+
+def process_frame(db: Session, session: ClassSession, frame: np.ndarray, t: float | None = None) -> dict:
+    """Live page of one session: run the AI pipeline on one camera frame and apply attendance rules."""
+    if session.state != SessionState.active:
+        return {"error": "Session is not active", "faces": []}
+    out, _events, mode = _recognize(db, session.course.org_id, session.id, session.liveness_required, frame, t,
+                                    lambda _student: session, session.id)
+    return {"faces": out, "summary": session_summary(db, session), "liveness_mode": mode}
+
+
+def process_kiosk_frame(db: Session, org_id: int, frame: np.ndarray, t: float | None = None) -> dict:
+    """Entrance kiosk: no session is started by hand - each person is checked in / out of the right group."""
+    sync_scheduled_sessions(db, org_id)
+    liveness = bool(app_settings.get_setting(db, org_id, "liveness_enabled"))
+    when = now()
+    out, events, mode = _recognize(db, org_id, -org_id, liveness, frame, t,
+                                   lambda student: kiosk_session_for(db, student, when), None)
+    return {"faces": out, "events": events, "liveness_mode": mode}
 
 
 def session_summary(db: Session, session: ClassSession) -> dict:

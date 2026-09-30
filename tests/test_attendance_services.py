@@ -4,7 +4,10 @@ import numpy as np
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from app.models import (Attendance, AttendanceStatus, ClassSession, Course, Enrollment, FaceEmbedding, Notification,
+from sqlalchemy import select
+
+from app.tenancy import create_org
+from app.models import (Organization, Attendance, AttendanceStatus, ClassSession, Course, Enrollment, FaceEmbedding, Notification,
                         SessionState, Student)
 from app.security import decrypt_embedding, encrypt_embedding, hash_password, verify_password
 from app.services import analytics, attendance as att, faces, reports
@@ -14,10 +17,11 @@ START = datetime(2026, 9, 28, 9, 0)
 
 
 def make_course(db, n_students=3):
-    course = Course(code="CS-401", name="Artificial Intelligence", semester=7, section="A")
+    org = db.scalar(select(Organization).limit(1)) or create_org(db, "Test College")
+    course = Course(code="CS-401", name="Artificial Intelligence", semester=7, section="A", org_id=org.id)
     db.add(course)
     students = [Student(student_code=f"BSCS-2023-{i:03d}", name=f"Student {i}", semester=7, section="A",
-                        consent_given=True) for i in range(1, n_students + 1)]
+                        consent_given=True, org_id=org.id) for i in range(1, n_students + 1)]
     db.add_all(students)
     db.flush()
     db.add_all([Enrollment(student_id=s.id, course_id=course.id) for s in students])
@@ -57,7 +61,7 @@ def test_database_unique_constraint(db):
 
 def test_not_enrolled_and_closed(db):
     course, students, sess = make_course(db)
-    outsider = Student(student_code="X-1", name="Outsider")
+    outsider = Student(student_code="X-1", name="Outsider", org_id=course.org_id)
     db.add(outsider)
     db.commit()
     assert "not enrolled" in att.mark_attendance(db, sess, outsider.id).message
@@ -145,7 +149,7 @@ def test_enrollment_stores_only_encrypted_embeddings(db):
     # images of two different people in one enrollment are refused
     bad = faces.enroll_images(db, s2, [face_image(2), face_image(3), face_image(4)])
     assert bad.accepted == 0 and faces.count_templates(db, s2.id) == 0
-    g = faces.load_gallery(db)
+    g = faces.load_gallery(db, s1.org_id)
     assert len(g) == 3 and set(g.labels.tolist()) == {s1.id}
 
 

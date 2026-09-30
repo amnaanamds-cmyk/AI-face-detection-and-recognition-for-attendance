@@ -2,7 +2,7 @@
 {% from "_macros.html" import status_badge, pct %}
 {% block content %}
 <h1 class="h3">{{ student.name }} <small class="text-muted">{{ student.student_code }}</small></h1>
-<p class="text-muted">{{ student.department }} &middot; Semester {{ student.semester }} &middot; Section {{ student.section }}</p>
+<p class="text-muted">{{ student.department }}{% if t.level %} &middot; {{ t.level }} {{ student.semester }} &middot; {{ t.subgroup }} {{ student.section }}{% endif %}</p>
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3"><div class="card stat"><div class="card-body"><div class="small text-muted">Total classes</div><div class="display-6">{{ s.total_classes }}</div></div></div></div>
   <div class="col-6 col-md-3"><div class="card stat"><div class="card-body"><div class="small text-muted">Present</div><div class="display-6 text-success">{{ s.counts.present }}</div><div class="small text-muted">+ {{ s.counts.late }} late</div></div></div></div>
@@ -11,13 +11,13 @@
 </div>
 {% for n in notes %}<div class="alert alert-warning py-2 small">{{ n.message }}</div>{% endfor %}
 <div class="row g-3">
-  <div class="col-lg-5"><div class="card"><div class="card-header">By course</div>
-    <table class="table table-sm mb-0"><thead><tr><th>Course</th><th>Attended</th><th>%</th></tr></thead><tbody>
+  <div class="col-lg-5"><div class="card"><div class="card-header">By {{ t.group|lower }}</div>
+    <table class="table table-sm mb-0"><thead><tr><th>{{ t.group }}</th><th>Attended</th><th>%</th></tr></thead><tbody>
     {% for c in s.courses %}<tr><td>{{ c.course.code }} {{ c.course.name }}</td><td>{{ c.attended }}/{{ c.total }}</td><td>{{ pct(c.rate) }}</td></tr>
     {% else %}<tr><td colspan="3" class="text-muted">No records yet.</td></tr>{% endfor %}
     </tbody></table></div></div>
   <div class="col-lg-7"><div class="card"><div class="card-header">History</div>
-    <div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Date</th><th>Course</th><th>Status</th><th>Time</th></tr></thead><tbody>
+    <div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Date</th><th>{{ t.group }}</th><th>Status</th><th>Time</th></tr></thead><tbody>
     {% for r in history %}<tr><td>{{ r.date.strftime('%d-%m-%Y') }}</td><td>{{ r.course.code }}</td><td>{{ status_badge(r.status) }}</td><td>{{ r.marked_at.strftime('%H:%M') if r.marked_at else '--' }}</td></tr>
     {% else %}<tr><td colspan="4" class="text-muted">No records yet.</td></tr>{% endfor %}
     </tbody></table></div></div></div>

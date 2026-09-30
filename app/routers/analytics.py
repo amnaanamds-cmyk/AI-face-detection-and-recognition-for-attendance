@@ -25,7 +25,7 @@ def _payload(db: Session, scope):
 def analytics_page(request: Request, user: User = Depends(staff), db: Session = Depends(get_db)):
     scope = course_scope(db, user)
     return render(request, "analytics.html", user, charts=_payload(db, scope),
-                  ranking=analytics.student_ranking(db, scope, 5), overall=analytics.dashboard(db, scope)["overall_rate"])
+                  ranking=analytics.student_ranking(db, scope, 5), overall=analytics.dashboard(db, scope, org_id=user.org_id)["overall_rate"])
 
 
 @router.get("/api/analytics")

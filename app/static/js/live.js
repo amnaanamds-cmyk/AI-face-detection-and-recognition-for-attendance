@@ -4,7 +4,7 @@ function startLive(sessionId) {
   const video = $('video'), overlay = $('overlay'), ctx = overlay.getContext('2d');
   const cam = new Camera(video);
   let timer = null, busy = false;
-  const COLORS = {marked: '#198754', duplicate: '#0d6efd', accepted: '#198754', checking: '#ffc107',
+  const COLORS = {marked: '#198754', checked_out: '#0d6efd', duplicate: '#0d6efd', accepted: '#198754', checking: '#ffc107',
                   unknown: '#dc3545', spoof: '#d63384', rejected: '#6c757d'};
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 

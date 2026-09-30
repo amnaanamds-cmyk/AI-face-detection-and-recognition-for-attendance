@@ -5,15 +5,30 @@
   <div class="row g-3">
     <div class="col-md-4"><label class="form-label">Code *</label><input class="form-control" name="code" required placeholder="CS-401" value="{{ course.code if course else '' }}"></div>
     <div class="col-md-8"><label class="form-label">Name *</label><input class="form-control" name="name" required placeholder="Artificial Intelligence" value="{{ course.name if course else '' }}"></div>
-    <div class="col-md-6"><label class="form-label">Department</label><input class="form-control" name="department" value="{{ course.department if course else 'Computer Science' }}"></div>
-    <div class="col-md-3"><label class="form-label">Semester</label><input class="form-control" type="number" min="1" name="semester" value="{{ course.semester if course else 1 }}"></div>
-    <div class="col-md-3"><label class="form-label">Section</label><input class="form-control" name="section" value="{{ course.section if course else 'A' }}"></div>
-    <div class="col-md-6"><label class="form-label">Teacher</label>
+    <div class="col-md-6"><label class="form-label">{{ t.unit }}</label><input class="form-control" name="department" value="{{ course.department if course else ('Computer Science' if t.level else '') }}"></div>
+    {% if t.level %}
+    <div class="col-md-3"><label class="form-label">{{ t.level }}</label><input class="form-control" type="number" min="1" name="semester" value="{{ course.semester if course else 1 }}"></div>
+    <div class="col-md-3"><label class="form-label">{{ t.subgroup }}</label><input class="form-control" name="section" value="{{ course.section if course else 'A' }}"></div>
+    {% else %}<input type="hidden" name="semester" value="{{ course.semester if course else 1 }}"><input type="hidden" name="section" value="{{ course.section if course else 'A' }}">{% endif %}
+    <div class="col-12"><div class="border rounded p-3 bg-light">
+      <div class="fw-semibold mb-1"><i class="bi bi-clock"></i> Fixed schedule (optional)</div>
+      <div class="small text-muted mb-2">For regular {{ t.sessions|lower }} (office hours, shifts, weekly classes). The kiosk then opens today's {{ t.session|lower }} automatically when the first person checks in.</div>
+      {% set days = (course.schedule_days if course else '0,1,2,3,4').split(',') %}
+      <div class="row g-2 align-items-end">
+        <div class="col-md-3"><label class="form-label small">Start time</label><input class="form-control" type="time" name="schedule_start" value="{{ course.schedule_start or '' if course else '' }}"></div>
+        <div class="col-md-3"><label class="form-label small">Length (minutes)</label><input class="form-control" type="number" min="5" name="schedule_minutes" value="{{ course.schedule_minutes if course else 480 }}"></div>
+        <div class="col-md-6"><label class="form-label small d-block">Days</label>
+          {% for d, name in [('0','Mon'),('1','Tue'),('2','Wed'),('3','Thu'),('4','Fri'),('5','Sat'),('6','Sun')] %}
+          <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="schedule_days" value="{{ d }}" id="d{{ d }}" {{ 'checked' if d in days }}><label class="form-check-label small" for="d{{ d }}">{{ name }}</label></div>
+          {% endfor %}</div>
+      </div>
+    </div></div>
+    <div class="col-md-6"><label class="form-label">{{ t.staff }}</label>
       <select class="form-select" name="teacher_id"><option value="0">— none —</option>
       {% for t in teachers %}<option value="{{ t.id }}" {{ 'selected' if course and course.teacher_id == t.id }}>{{ t.full_name }}</option>{% endfor %}</select>
-      <div class="form-text">Add teachers under Admin → Users.</div></div>
+      <div class="form-text">Add {{ t.staffs|lower }} under Admin → Users.</div></div>
     {% if not course %}<div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" name="enroll_matching" id="em" checked>
-      <label class="form-check-label" for="em">Enroll all students of this department / semester / section</label></div></div>{% endif %}
+      <label class="form-check-label" for="em">Enroll all {{ t.people|lower }} of this {{ t.unit|lower }}{% if t.level %} / {{ t.level|lower }} / {{ t.subgroup|lower }}{% endif %}</label></div></div>{% endif %}
   </div>
   <div class="mt-4"><button class="btn btn-primary">Save</button> <a class="btn btn-link" href="/courses">Cancel</a></div>
 </form>

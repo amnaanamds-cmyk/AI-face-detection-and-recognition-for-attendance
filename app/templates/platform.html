@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="h3 mb-3"><i class="bi bi-buildings"></i> Platform console <small class="text-muted">all customer organizations</small></h1>
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3"><div class="card stat"><div class="card-body"><div class="small text-muted">Organizations</div><div class="display-6">{{ stats.orgs }}</div><div class="small text-muted">{{ stats.active }} active</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="card stat"><div class="card-body"><div class="small text-muted">Paying</div><div class="display-6 text-success">{{ stats.paying }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="card stat"><div class="card-body"><div class="small text-muted">People registered</div><div class="display-6">{{ stats.people }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="card stat"><div class="card-body"><div class="small text-muted">Monthly revenue (list price)</div><div class="display-6">${{ mrr }}</div></div></div></div>
+</div>
+<div class="card"><div class="table-responsive"><table class="table table-sm mb-0 align-middle">
+  <thead><tr><th>Organization</th><th>Type</th><th>Plan</th><th>Status</th><th>People</th><th>Users</th><th>Created</th><th>Actions</th></tr></thead><tbody>
+  {% for r in rows %}{% set o = r.org %}
+  <tr class="{{ '' if o.is_active else 'table-secondary' }}"><td><strong>{{ o.name }}</strong><div class="small text-muted">{{ o.slug }}</div></td>
+  <td>{{ o.kind.value }}</td><td>{{ r.plan.name }}{% if o.plan == 'trial' and o.trial_ends_at %}<div class="small text-muted">ends {{ o.trial_ends_at.strftime('%d %b %Y') }}</div>{% endif %}</td>
+  <td>{{ o.plan_status }}{% if not o.is_active %} <span class="badge text-bg-secondary">suspended</span>{% endif %}</td>
+  <td>{{ r.people }}{% if r.plan.max_people %} / {{ r.plan.max_people }}{% endif %}</td><td>{{ r.users }}</td><td class="small">{{ o.created_at.strftime('%d %b %Y') }}</td>
+  <td class="d-flex gap-1">
+    <form method="post" action="/platform/orgs/{{ o.id }}" class="d-flex gap-1"><input type="hidden" name="action" value="plan">
+      <select name="plan" class="form-select form-select-sm">{% for k, p in plans.items() %}<option value="{{ k }}" {{ 'selected' if k == o.plan }}>{{ p.name }}</option>{% endfor %}</select>
+      <button class="btn btn-sm btn-outline-primary">Set</button></form>
+    <form method="post" action="/platform/orgs/{{ o.id }}"><input type="hidden" name="action" value="toggle">
+      <button class="btn btn-sm btn-outline-{{ 'danger' if o.is_active else 'success' }}">{{ 'Suspend' if o.is_active else 'Activate' }}</button></form>
+  </td></tr>
+  {% endfor %}</tbody></table></div></div>
+<p class="small text-muted mt-2">Customer data is not visible here on purpose: operators only manage accounts and plans.</p>
+{% endblock %}

@@ -51,8 +51,8 @@ def enroll_images(db: Session, student: Student, images: list[np.ndarray]) -> En
     # Identity check: the new face must not already belong to another registered student
     # (prevents the same person being enrolled twice, or photos being attached to the wrong record).
     if new_vectors:
-        threshold = float(app_settings.get_setting(db, "match_threshold"))
-        others = load_gallery(db, exclude_student=student.id)
+        threshold = float(app_settings.get_setting(db, student.org_id, "match_threshold"))
+        others = load_gallery(db, student.org_id, exclude_student=student.id)
         centroid = np.mean(new_vectors, axis=0)
         centroid /= np.linalg.norm(centroid)
         m = others.match(centroid, threshold)
@@ -73,7 +73,7 @@ def enroll_images(db: Session, student: Student, images: list[np.ndarray]) -> En
             return EnrollmentReport(0, ["images do not appear to show the same person - enrollment rejected"],
                                     count_templates(db, student.id))
     db.commit()
-    gallery_cache.invalidate()
+    gallery_cache.invalidate(student.org_id)
     return EnrollmentReport(accepted, rejected, count_templates(db, student.id))
 
 
@@ -83,17 +83,19 @@ def count_templates(db: Session, student_id: int) -> int:
 
 def delete_faces(db: Session, student_id: int) -> int:
     rows = db.scalars(select(FaceEmbedding).where(FaceEmbedding.student_id == student_id)).all()
+    org_id = db.scalar(select(Student.org_id).where(Student.id == student_id))
     for r in rows:
         db.delete(r)
     db.commit()
-    gallery_cache.invalidate()
+    gallery_cache.invalidate(org_id)
     return len(rows)
 
 
-def load_gallery(db: Session, exclude_student: int | None = None) -> Gallery:
+def load_gallery(db: Session, org_id: int, exclude_student: int | None = None) -> Gallery:
+    """All active face templates of ONE organization - faces never match across customers."""
     backend = get_backend()
     q = (select(FaceEmbedding.student_id, FaceEmbedding.embedding).join(Student)
-         .where(Student.is_active.is_(True), FaceEmbedding.model_name == backend.name))
+         .where(Student.org_id == org_id, Student.is_active.is_(True), FaceEmbedding.model_name == backend.name))
     if exclude_student is not None:
         q = q.where(FaceEmbedding.student_id != exclude_student)
     rows = db.execute(q).all()
@@ -103,5 +105,5 @@ def load_gallery(db: Session, exclude_student: int | None = None) -> Gallery:
     return Gallery(vecs, [sid for sid, _ in rows])
 
 
-def get_gallery(db: Session) -> Gallery:
-    return gallery_cache.get(lambda: load_gallery(db))
+def get_gallery(db: Session, org_id: int) -> Gallery:
+    return gallery_cache.get(org_id, lambda: load_gallery(db, org_id))

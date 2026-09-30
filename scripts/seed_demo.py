@@ -19,7 +19,8 @@ from sqlalchemy import select  # noqa: E402
 
 from app import database  # noqa: E402
 from app.main import bootstrap_admin  # noqa: E402
-from app.models import ClassSession, Course, Enrollment, Role, SessionState, Student, User  # noqa: E402
+from app.models import ClassSession, Course, Enrollment, Organization, Role, SessionState, Student, User  # noqa: E402
+from app.tenancy import upgrade_database  # noqa: E402
 from app.security import hash_password  # noqa: E402
 from app.services import attendance as att  # noqa: E402
 
@@ -29,23 +30,25 @@ COURSES = [("CS-401", "Artificial Intelligence", time(9, 0)), ("CS-403", "Comput
 
 def main() -> int:
     database.init_db()
+    upgrade_database(database.engine)
     bootstrap_admin()
     rng = random.Random(42)
     with database.SessionLocal() as db:
-        if db.scalar(select(Course.id).where(Course.code == "CS-401")):
+        org = db.scalar(select(Organization).order_by(Organization.id).limit(1))
+        if db.scalar(select(Course.id).where(Course.org_id == org.id, Course.code == "CS-401")):
             print("Demo data already present")
             return 0
         teacher = User(username="teacher", password_hash=hash_password("teacher123"), full_name="Dr. Ahmad",
-                       role=Role.teacher)
+                       role=Role.teacher, org_id=org.id)
         db.add(teacher)
         students = [Student(student_code=f"BSCS-2023-{i:03d}", roll_number=str(i), name=f"Demo Student {i:02d}",
-                            semester=7, section="A", consent_given=True) for i in range(1, 26)]
+                            semester=7, section="A", consent_given=True, org_id=org.id) for i in range(1, 26)]
         db.add_all(students)
         db.flush()
         diligence = {s.id: rng.uniform(0.55, 0.98) for s in students}
         today = date.today()
         for code, name, start in COURSES:
-            c = Course(code=code, name=name, semester=7, section="A", teacher_id=teacher.id)
+            c = Course(code=code, name=name, semester=7, section="A", teacher_id=teacher.id, org_id=org.id)
             db.add(c)
             db.flush()
             db.add_all(Enrollment(student_id=s.id, course_id=c.id) for s in students)

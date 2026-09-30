@@ -9,6 +9,7 @@ from app.database import get_db
 from app.deps import course_scope, current_user, render
 from app.models import Attendance, Notification, Role, User
 from app.services import analytics
+from app.services.attendance import sync_scheduled_sessions
 
 router = APIRouter()
 
@@ -17,8 +18,9 @@ router = APIRouter()
 def home(request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
     if user.role == Role.student:
         return RedirectResponse("/me", status_code=303)
+    sync_scheduled_sessions(db, user.org_id)
     scope = course_scope(db, user)
-    data = analytics.dashboard(db, scope)
+    data = analytics.dashboard(db, scope, org_id=user.org_id if user.role == Role.admin else None)
     nq = select(Notification).where(Notification.is_read.is_(False))
     if scope is not None:
         nq = nq.where(Notification.course_id.in_(scope))

@@ -56,21 +56,24 @@ class Gallery:
 
 
 class GalleryCache:
-    """Caches the gallery built from the database; invalidated whenever faces change."""
+    """Caches one gallery per organization; invalidated whenever faces change."""
 
     def __init__(self):
-        self._gallery: Gallery | None = None
+        self._galleries: dict[int, Gallery] = {}
         self._lock = threading.Lock()
 
-    def invalidate(self) -> None:
+    def invalidate(self, org_id: int | None = None) -> None:
         with self._lock:
-            self._gallery = None
+            if org_id is None:
+                self._galleries.clear()
+            else:
+                self._galleries.pop(org_id, None)
 
-    def get(self, loader) -> Gallery:
+    def get(self, org_id: int, loader) -> Gallery:
         with self._lock:
-            if self._gallery is None:
-                self._gallery = loader()
-            return self._gallery
+            if org_id not in self._galleries:
+                self._galleries[org_id] = loader()
+            return self._galleries[org_id]
 
 
 gallery_cache = GalleryCache()

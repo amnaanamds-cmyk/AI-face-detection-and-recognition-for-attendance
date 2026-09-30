@@ -3,7 +3,7 @@
 <h1 class="h3 mb-3">Users &amp; roles</h1>
 <div class="row g-3">
   <div class="col-lg-8"><div class="card"><div class="table-responsive"><table class="table table-sm mb-0 align-middle">
-    <thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Linked student</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+    <thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Linked {{ t.person|lower }}</th><th>Status</th><th>Actions</th></tr></thead><tbody>
     {% for u in users %}<tr><td>{{ u.username }}</td><td>{{ u.full_name }}</td><td><span class="badge text-bg-primary">{{ u.role.value }}</span></td>
     <td>{{ u.student.student_code if u.student else '' }}</td><td>{{ 'Active' if u.is_active else 'Disabled' }}</td>
     <td class="d-flex gap-1">
@@ -17,7 +17,7 @@
     <div class="mb-2"><input class="form-control" type="email" name="email" placeholder="Email"></div>
     <div class="mb-2"><input class="form-control" type="password" name="password" placeholder="Password (min. 8)" minlength="8" required></div>
     <div class="mb-2"><select class="form-select" name="role">{% for r in roles %}<option value="{{ r }}" {{ 'selected' if r == 'teacher' }}>{{ r|title }}</option>{% endfor %}</select></div>
-    <div class="mb-3"><select class="form-select" name="student_id"><option value="0">— link to student (student role only) —</option>{% for s in students %}<option value="{{ s.id }}">{{ s.student_code }} {{ s.name }}</option>{% endfor %}</select></div>
+    <div class="mb-3"><select class="form-select" name="student_id"><option value="0">— link to {{ t.person|lower }} ({{ t.person|lower }} role only) —</option>{% for s in students %}<option value="{{ s.id }}">{{ s.student_code }} {{ s.name }}</option>{% endfor %}</select></div>
     <button class="btn btn-primary w-100">Create</button></form></div></div>
 </div>
 {% endblock %}

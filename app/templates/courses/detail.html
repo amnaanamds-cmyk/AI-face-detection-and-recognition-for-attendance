@@ -3,7 +3,7 @@
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-start mb-3 gap-2">
   <div><h1 class="h3 mb-0">{{ course.code }} — {{ course.name }}</h1>
-  <div class="text-muted">{{ course.department }} &middot; Semester {{ course.semester }}{{ course.section }} &middot; Teacher: {{ course.teacher.full_name if course.teacher else '—' }}</div></div>
+  <div class="text-muted">{{ course.department }}{% if t.level %} &middot; {{ t.level }} {{ course.semester }}{{ course.section }}{% endif %}{% if course.schedule_start %} &middot; {{ course.schedule_start }}{% endif %} &middot; {{ t.staff }}: {{ course.teacher.full_name if course.teacher else '—' }}</div></div>
   <div class="d-flex gap-2">
     <a class="btn btn-success" href="/sessions/new?course_id={{ course.id }}"><i class="bi bi-camera-video"></i> Start attendance</a>
     {% if user.role.value == 'admin' %}<a class="btn btn-outline-secondary" href="/courses/{{ course.id }}/edit">Edit</a>
@@ -11,25 +11,25 @@
   </div>
 </div>
 <div class="row g-3">
-  <div class="col-lg-8"><div class="card"><div class="card-header d-flex justify-content-between"><span>Students ({{ summary.rows|length }}) — {{ summary.sessions }} session(s), class attendance {{ pct(summary.rate) }}</span></div>
+  <div class="col-lg-8"><div class="card"><div class="card-header d-flex justify-content-between"><span>{{ t.people }} ({{ summary.rows|length }}) — {{ summary.sessions }} {{ t.session|lower }}(s), class attendance {{ pct(summary.rate) }}</span></div>
     <div class="table-responsive"><table class="table table-sm mb-0 align-middle"><thead><tr><th>ID</th><th>Name</th><th>Present</th><th>Late</th><th>Absent</th><th>Exc./Leave</th><th>%</th><th></th></tr></thead><tbody>
     {% for r in summary.rows %}<tr><td>{{ r.student.student_code }}</td><td><a href="/students/{{ r.student.id }}">{{ r.student.name }}</a>{% if not r.student.face_registered %} <i class="bi bi-exclamation-circle text-warning" title="No face registered"></i>{% endif %}</td>
     <td>{{ r.present }}</td><td>{{ r.late }}</td><td>{{ r.absent }}</td><td>{{ r.excused + r.leave }}</td><td>{{ pct(r.rate) }}</td>
     <td>{% if user.role.value == 'admin' %}<form method="post" action="/courses/{{ course.id }}/enroll"><input type="hidden" name="student_id" value="{{ r.student.id }}"><button class="btn btn-sm btn-link text-danger p-0" name="action" value="remove" title="Remove from course"><i class="bi bi-x-circle"></i></button></form>{% endif %}</td></tr>
-    {% else %}<tr><td colspan="8" class="text-muted">No students enrolled.</td></tr>{% endfor %}
+    {% else %}<tr><td colspan="8" class="text-muted">No {{ t.people|lower }} enrolled.</td></tr>{% endfor %}
     </tbody></table></div>
     {% if user.role.value == 'admin' %}
     <div class="card-body border-top d-flex flex-wrap gap-2">
       <form method="post" action="/courses/{{ course.id }}/enroll" class="d-flex gap-2 flex-grow-1">
-        <select class="form-select form-select-sm" name="student_id">{% for s in candidates %}<option value="{{ s.id }}">{{ s.student_code }} — {{ s.name }} ({{ s.semester }}{{ s.section }})</option>{% endfor %}</select>
+        <select class="form-select form-select-sm" name="student_id">{% for s in candidates %}<option value="{{ s.id }}">{{ s.student_code }} — {{ s.name }} {% if t.level %}({{ s.semester }}{{ s.section }}){% endif %}</option>{% endfor %}</select>
         <button class="btn btn-sm btn-outline-primary" name="action" value="add">Enroll</button></form>
-      <form method="post" action="/courses/{{ course.id }}/enroll"><button class="btn btn-sm btn-outline-secondary" name="action" value="matching">Enroll all of {{ course.semester }}{{ course.section }}</button></form>
+      <form method="post" action="/courses/{{ course.id }}/enroll"><button class="btn btn-sm btn-outline-secondary" name="action" value="matching">Enroll all matching {{ t.people|lower }}</button></form>
     </div>{% endif %}
   </div></div>
-  <div class="col-lg-4"><div class="card"><div class="card-header">Sessions</div>
+  <div class="col-lg-4"><div class="card"><div class="card-header">{{ t.sessions }}</div>
     <ul class="list-group list-group-flush">
     {% for s in sessions %}<a class="list-group-item list-group-item-action d-flex justify-content-between" href="/sessions/{{ s.id }}"><span>{{ s.start_time.strftime('%d %b %Y, %H:%M') }}</span>{{ session_state(s.state) }}</a>
-    {% else %}<li class="list-group-item text-muted">No sessions yet.</li>{% endfor %}
+    {% else %}<li class="list-group-item text-muted">No {{ t.sessions|lower }} yet.</li>{% endfor %}
     </ul></div></div>
 </div>
 {% endblock %}

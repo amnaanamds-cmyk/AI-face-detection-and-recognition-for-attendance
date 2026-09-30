@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="h3 mb-3">Create attendance session</h1>
-{% if not courses %}<div class="alert alert-warning">You have no courses yet.</div>{% endif %}
+<h1 class="h3 mb-3">Create attendance {{ t.session|lower }}</h1>
+{% if not courses %}<div class="alert alert-warning">You have no {{ t.groups|lower }} yet.</div>{% endif %}
 <form method="post" class="card card-body" style="max-width: 720px">
   <div class="row g-3">
-    <div class="col-12"><label class="form-label">Course</label>
-      <select class="form-select" name="course_id" required>{% for c in courses %}<option value="{{ c.id }}" {{ 'selected' if c.id == course_id }}>{{ c.code }} — {{ c.name }} (Sem {{ c.semester }}{{ c.section }}{% if c.teacher %}, {{ c.teacher.full_name }}{% endif %})</option>{% endfor %}</select></div>
+    <div class="col-12"><label class="form-label">{{ t.group }}</label>
+      <select class="form-select" name="course_id" required>{% for c in courses %}<option value="{{ c.id }}" {{ 'selected' if c.id == course_id }}>{{ c.code }} — {{ c.name }} ({% if t.level %}{{ t.level[:3] }} {{ c.semester }}{{ c.section }}{% endif %}{% if c.teacher %}, {{ c.teacher.full_name }}{% endif %})</option>{% endfor %}</select></div>
     <div class="col-md-4"><label class="form-label">Date</label><input class="form-control" type="date" name="day" value="{{ today }}" required></div>
     <div class="col-md-4"><label class="form-label">Start time</label><input class="form-control" type="time" name="start" value="{{ now }}" required></div>
     <div class="col-md-4"><label class="form-label">Duration (min)</label><input class="form-control" type="number" name="duration" value="60" min="5"></div>

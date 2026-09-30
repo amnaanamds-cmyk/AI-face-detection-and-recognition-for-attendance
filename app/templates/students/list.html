@@ -1,25 +1,25 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-  <h1 class="h3 mb-0">Students</h1>
+  <h1 class="h3 mb-0">{{ t.people }}</h1>
   {% if user.role.value == 'admin' %}<div class="d-flex gap-2"><a class="btn btn-outline-primary" href="/students/import"><i class="bi bi-upload"></i> Bulk import</a>
-  <a class="btn btn-primary" href="/students/new"><i class="bi bi-person-plus"></i> Register student</a></div>{% endif %}
+  <a class="btn btn-primary" href="/students/new"><i class="bi bi-person-plus"></i> Register {{ t.person|lower }}</a></div>{% endif %}
 </div>
 <form class="row g-2 mb-3">
   <div class="col-md-5"><input class="form-control" name="q" value="{{ q }}" placeholder="Search name, ID or roll number"></div>
-  <div class="col-md-2"><input class="form-control" name="semester" value="{{ semester }}" placeholder="Semester" type="number" min="1"></div>
-  <div class="col-md-2"><input class="form-control" name="section" value="{{ section }}" placeholder="Section"></div>
+  {% if t.level %}<div class="col-md-2"><input class="form-control" name="semester" value="{{ semester }}" placeholder="{{ t.level }}" type="number" min="1"></div>
+  <div class="col-md-2"><input class="form-control" name="section" value="{{ section }}" placeholder="{{ t.subgroup }}"></div>{% endif %}
   <div class="col-md-2"><button class="btn btn-outline-primary w-100">Filter</button></div>
 </form>
 <div class="card"><div class="table-responsive"><table class="table table-hover mb-0 align-middle">
-  <thead><tr><th>Student ID</th><th>Name</th><th>Department</th><th>Sem/Sec</th><th>Face</th><th>Status</th></tr></thead>
+  <thead><tr><th>{{ t.person_id }}</th><th>Name</th><th>{{ t.unit }}</th>{% if t.level %}<th>{{ t.level[:3] }}/{{ t.subgroup[:3] }}</th>{% endif %}<th>Face</th><th>Status</th></tr></thead>
   <tbody>
   {% for s in students %}
   <tr onclick="location='/students/{{ s.id }}'" style="cursor:pointer">
-    <td class="fw-semibold">{{ s.student_code }}</td><td>{{ s.name }}</td><td>{{ s.department }}</td><td>{{ s.semester }}{{ s.section }}</td>
+    <td class="fw-semibold">{{ s.student_code }}</td><td>{{ s.name }}</td><td>{{ s.department }}</td>{% if t.level %}<td>{{ s.semester }}{{ s.section }}</td>{% endif %}
     <td>{% if s.face_registered %}<span class="badge text-bg-success"><i class="bi bi-check2"></i> {{ s.embeddings|length }}</span>{% else %}<span class="badge text-bg-warning">Not registered</span>{% endif %}</td>
     <td>{% if s.is_active %}<span class="badge text-bg-light">Active</span>{% else %}<span class="badge text-bg-secondary">Inactive</span>{% endif %}</td>
   </tr>
-  {% else %}<tr><td colspan="6" class="text-muted">No students found.</td></tr>{% endfor %}
+  {% else %}<tr><td colspan="6" class="text-muted">No {{ t.people|lower }} found.</td></tr>{% endfor %}
   </tbody></table></div></div>
 {% endblock %}

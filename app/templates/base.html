@@ -28,8 +28,9 @@
         {% if user.role.value in ['admin', 'teacher'] %}
         <li class="nav-item"><a class="nav-link" href="/"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
         <li class="nav-item"><a class="nav-link" href="/sessions"><i class="bi bi-camera-video"></i> Attendance</a></li>
-        <li class="nav-item"><a class="nav-link" href="/students"><i class="bi bi-people"></i> Students</a></li>
-        <li class="nav-item"><a class="nav-link" href="/courses"><i class="bi bi-journal-bookmark"></i> Courses</a></li>
+        <li class="nav-item"><a class="nav-link" href="/kiosk"><i class="bi bi-door-open"></i> Kiosk</a></li>
+        <li class="nav-item"><a class="nav-link" href="/students"><i class="bi bi-people"></i> {{ t.people }}</a></li>
+        <li class="nav-item"><a class="nav-link" href="/courses"><i class="bi bi-journal-bookmark"></i> {{ t.groups }}</a></li>
         <li class="nav-item"><a class="nav-link" href="/analytics"><i class="bi bi-graph-up"></i> Analytics</a></li>
         <li class="nav-item"><a class="nav-link" href="/reports"><i class="bi bi-file-earmark-spreadsheet"></i> Reports</a></li>
         <li class="nav-item"><a class="nav-link" href="/notifications"><i class="bi bi-bell"></i> Alerts</a></li>
@@ -41,6 +42,8 @@
             <li><a class="dropdown-item" href="/users">Users &amp; roles</a></li>
             <li><a class="dropdown-item" href="/settings">System settings</a></li>
             <li><a class="dropdown-item" href="/audit">AI audit log</a></li>
+            <li><a class="dropdown-item" href="/billing">{{ 'Subscription' if edition == 'saas' else 'License' }}</a></li>
+            {% if user.is_superadmin %}<li><hr class="dropdown-divider"></li><li><a class="dropdown-item" href="/platform">Platform console</a></li>{% endif %}
           </ul>
         </li>
         {% endif %}
@@ -66,6 +69,8 @@
 </nav>
 {% endif %}
 <main class="container-fluid py-4 px-md-4">
+  {% if billing_problem and user and user.role.value == 'admin' %}<div class="alert alert-warning d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-exclamation-triangle"></i> {{ billing_problem }}</span><a class="btn btn-sm btn-warning" href="/billing">Billing</a></div>{% endif %}
   {% for category, message in flashes %}
   <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
     {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>

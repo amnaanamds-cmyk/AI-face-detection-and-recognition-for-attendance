@@ -42,6 +42,7 @@ class Track:
     liveness: LivenessState = field(default_factory=LivenessState)
     marked: bool = False  # attendance already handled for this track
     outcome: str = ""     # last attendance message shown for this track
+    final_state: str = ""  # marked | checked_out | duplicate | rejected (after the attendance decision)
     logged: set = field(default_factory=set)  # audit events already written for this track
     embedding: np.ndarray | None = None      # running mean embedding of this face
 

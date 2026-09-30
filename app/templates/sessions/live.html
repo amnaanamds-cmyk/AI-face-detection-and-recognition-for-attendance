@@ -23,7 +23,7 @@
     </div></div>
     {% if session.liveness_required %}<div class="alert alert-info small mt-3 mb-0" id="liveHelp"><i class="bi bi-info-circle"></i>
       Liveness check is on: printed photos and phone/laptop screens are rejected.
-      <span id="motionHelp" class="d-none">Each student looks at the camera and <strong>turns their head to the left, holds ~1 second, then to the right</strong> (about 20°).</span></div>{% endif %}
+      <span id="motionHelp" class="d-none">Each {{ t.person|lower }} looks at the camera and <strong>turns their head to the left, holds ~1 second, then to the right</strong> (about 20°).</span></div>{% endif %}
   </div>
   <div class="col-xl-4">
     <div class="card mb-3"><div class="card-body d-flex justify-content-around text-center">

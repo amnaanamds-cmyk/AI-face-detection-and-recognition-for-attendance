@@ -82,7 +82,9 @@ def course_summary(db: Session, course_id: int) -> dict:
     return {"sessions": n_sessions, "rows": rows, "rate": rate(r.status for r in recs)}
 
 
-def dashboard(db: Session, course_ids: list[int] | None = None, today: date | None = None) -> dict:
+def dashboard(db: Session, course_ids: list[int] | None = None, today: date | None = None,
+              org_id: int | None = None) -> dict:
+    """org_id given (administrators): count every active person of the organization."""
     today = today or date.today()
     sq = select(ClassSession).where(ClassSession.date == today)
     if course_ids is not None:
@@ -97,7 +99,9 @@ def dashboard(db: Session, course_ids: list[int] | None = None, today: date | No
     attended = c["present"] + c["late"]
 
     student_q = select(Student).where(Student.is_active.is_(True))
-    if course_ids is not None:
+    if org_id is not None:
+        student_q = student_q.where(Student.org_id == org_id)
+    elif course_ids is not None:
         student_q = student_q.join(Enrollment).where(Enrollment.course_id.in_(course_ids)).distinct()
     students = db.scalars(student_q).all()
 

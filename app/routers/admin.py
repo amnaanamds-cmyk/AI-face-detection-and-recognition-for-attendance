@@ -8,8 +8,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.deps import admin_only, course_scope, flash, render, staff
-from app.models import Notification, RecognitionEvent, Role, Student, User
+from app.deps import admin_only, course_scope, flash, get_student, render, staff
+from app.models import ClassSession, Notification, RecognitionEvent, Role, Student, User
 from app.security import hash_password
 from app.services import app_settings
 
@@ -19,8 +19,9 @@ router = APIRouter()
 @router.get("/users")
 def users(request: Request, user: User = Depends(admin_only), db: Session = Depends(get_db)):
     return render(request, "admin/users.html", user,
-                  users=db.scalars(select(User).order_by(User.role, User.username)).all(),
-                  students=db.scalars(select(Student).order_by(Student.student_code)).all(), roles=[r.value for r in Role])
+                  users=db.scalars(select(User).where(User.org_id == user.org_id).order_by(User.role, User.username)).all(),
+                  students=db.scalars(select(Student).where(Student.org_id == user.org_id).order_by(Student.student_code)).all(),
+                  roles=[r.value for r in Role])
 
 
 @router.post("/users/new")
@@ -30,21 +31,24 @@ def create_user(request: Request, username: str = Form(...), full_name: str = Fo
     if len(password) < 8:
         flash(request, "Password must be at least 8 characters", "danger")
         return RedirectResponse("/users", status_code=303)
+    if student_id:
+        get_student(db, user, student_id)
     db.add(User(username=username.strip(), full_name=full_name.strip(), password_hash=hash_password(password),
-                role=Role(role), email=email or None, student_id=student_id or None))
+                role=Role(role), email=(email or "").strip().lower() or None, student_id=student_id or None,
+                org_id=user.org_id))
     try:
         db.commit()
         flash(request, f"User {username} created")
     except IntegrityError:
         db.rollback()
-        flash(request, "Username already exists", "danger")
+        flash(request, "Username already exists (usernames are unique across the whole service)", "danger")
     return RedirectResponse("/users", status_code=303)
 
 
 @router.post("/users/{uid}/toggle")
 def toggle_user(uid: int, request: Request, user: User = Depends(admin_only), db: Session = Depends(get_db)):
     target = db.get(User, uid)
-    if target is None:
+    if target is None or target.org_id != user.org_id:
         raise HTTPException(404)
     if target.id == user.id:
         flash(request, "You cannot deactivate your own account", "danger")
@@ -58,7 +62,7 @@ def toggle_user(uid: int, request: Request, user: User = Depends(admin_only), db
 def reset_password(uid: int, request: Request, password: str = Form(...), user: User = Depends(admin_only),
                    db: Session = Depends(get_db)):
     target = db.get(User, uid)
-    if target is None:
+    if target is None or target.org_id != user.org_id:
         raise HTTPException(404)
     if len(password) < 8:
         flash(request, "Password must be at least 8 characters", "danger")
@@ -76,12 +80,12 @@ def settings_page(request: Request, user: User = Depends(admin_only), db: Sessio
 
     try:
         backend = get_backend()
-        effective = resolve_liveness_mode(str(app_settings.get_setting(db, "liveness_mode")), backend)
+        effective = resolve_liveness_mode(str(app_settings.get_setting(db, user.org_id, "liveness_mode")), backend)
         antispoof = bool(getattr(backend, "has_antispoof", False))
         models_ok = True
     except ModelsMissingError:
         effective, antispoof, models_ok = "motion", False, False
-    return render(request, "admin/settings.html", user, values=app_settings.all_settings(db),
+    return render(request, "admin/settings.html", user, values=app_settings.all_settings(db, user.org_id),
                   defs=app_settings.DEFAULTS, choices=app_settings.CHOICES, effective_mode=effective,
                   antispoof=antispoof, models_ok=models_ok)
 
@@ -92,9 +96,9 @@ async def save_settings(request: Request, user: User = Depends(admin_only), db: 
     try:
         for key, (_, typ, _) in app_settings.DEFAULTS.items():
             if typ is bool:
-                app_settings.set_setting(db, key, form.get(key) == "on")
+                app_settings.set_setting(db, user.org_id, key, form.get(key) == "on")
             elif key in form:
-                app_settings.set_setting(db, key, form[key])
+                app_settings.set_setting(db, user.org_id, key, form[key])
         flash(request, "Settings saved")
     except ValueError as exc:
         flash(request, f"Invalid value: {exc}", "danger")
@@ -124,5 +128,7 @@ def mark_read(user: User = Depends(staff), db: Session = Depends(get_db)):
 
 @router.get("/audit")
 def audit(request: Request, user: User = Depends(admin_only), db: Session = Depends(get_db)):
-    events = db.scalars(select(RecognitionEvent).order_by(RecognitionEvent.created_at.desc()).limit(300)).all()
+    events = db.scalars(select(RecognitionEvent).join(ClassSession, RecognitionEvent.session_id == ClassSession.id)
+                        .where(ClassSession.course_id.in_(course_scope(db, user)))
+                        .order_by(RecognitionEvent.created_at.desc()).limit(300)).all()
     return render(request, "admin/audit.html", user, events=events)

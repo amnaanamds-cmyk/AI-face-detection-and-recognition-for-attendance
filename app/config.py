@@ -68,6 +68,14 @@ class Settings:
     # Optional separate key for encrypting face embeddings (defaults to SECRET_KEY).
     embedding_key: str = field(default_factory=lambda: _env("EMBEDDING_KEY", ""))
 
+    # "selfhosted" = customer runs it on their own server (license key); "saas" = you host it for many customers
+    edition: str = field(default_factory=lambda: _env("EDITION", "selfhosted"))
+    public_signup: bool = field(default_factory=lambda: _env_bool("PUBLIC_SIGNUP", _env("EDITION", "selfhosted") == "saas"))
+    # without a license key a self-hosted installation is limited to this many people
+    unlicensed_max_people: int = field(default_factory=lambda: _env_int("UNLICENSED_MAX_PEOPLE", 25))
+    license_file: Path = field(default_factory=lambda: Path(_env("LICENSE_FILE", str(BASE_DIR / "data" / "license.key"))))
+    default_org_name: str = field(default_factory=lambda: _env("DEFAULT_ORG_NAME", "My organization"))
+
     # Initial administrator created on first start-up.
     admin_username: str = field(default_factory=lambda: _env("ADMIN_USERNAME", "admin"))
     admin_password: str = field(default_factory=lambda: _env("ADMIN_PASSWORD", "admin123"))
@@ -103,6 +111,11 @@ class Settings:
 
     # --- Enrollment --------------------------------------------------------
     min_enrollment_images: int = field(default_factory=lambda: _env_int("MIN_ENROLLMENT_IMAGES", 3))
+
+    # --- Billing (SaaS edition, Stripe) -----------------------------------
+    public_base_url: str = field(default_factory=lambda: _env("PUBLIC_BASE_URL", "http://127.0.0.1:8000"))
+    stripe_secret_key: str = field(default_factory=lambda: _env("STRIPE_SECRET_KEY", ""))
+    stripe_webhook_secret: str = field(default_factory=lambda: _env("STRIPE_WEBHOOK_SECRET", ""))
 
     # --- Notifications (optional e-mail) ------------------------------------
     smtp_host: str = field(default_factory=lambda: _env("SMTP_HOST", ""))

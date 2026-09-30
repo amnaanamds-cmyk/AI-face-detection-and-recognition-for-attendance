@@ -40,8 +40,8 @@ def send_email(to: str, subject: str, body: str) -> bool:
 def check_low_attendance(db: Session, course_id: int) -> list[Notification]:
     from app.services.analytics import course_summary  # local import avoids a cycle
 
-    threshold = float(app_settings.get_setting(db, "low_attendance_threshold"))
     course = db.get(Course, course_id)
+    threshold = float(app_settings.get_setting(db, course.org_id, "low_attendance_threshold"))
     created = []
     for row in course_summary(db, course_id)["rows"]:
         student, pct = row["student"], row["rate"]

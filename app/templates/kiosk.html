@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Kiosk - {{ org.name }}{% endblock %}
+{% block head %}<style>
+  .kiosk-msg { min-height: 5.5rem; }
+  .kiosk-msg .welcome { font-size: 2rem; font-weight: 700; }
+  .kiosk-log li { font-size: 1rem; }
+  body.kiosk-fullscreen nav.navbar { display: none; }
+</style>{% endblock %}
+{% block content %}
+{% if problem %}<div class="alert alert-danger">{{ problem }}</div>{% endif %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div><h1 class="h4 mb-0"><i class="bi bi-door-open"></i> {{ org.name }} — check-in kiosk</h1>
+    <div class="small text-muted">{{ t.kiosk_hint }}{% if t.check_out %} Looking at the camera again later records the check-out.{% endif %}</div></div>
+  <div class="d-flex gap-2 flex-wrap">
+    <select id="facing" class="form-select form-select-sm" style="width:auto"><option value="user">Front camera</option><option value="environment">Back camera</option></select>
+    <button class="btn btn-success" id="btnStart"><i class="bi bi-play-fill"></i> Start kiosk</button>
+    <button class="btn btn-outline-secondary" id="btnFull"><i class="bi bi-arrows-fullscreen"></i> Full screen</button>
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col-lg-8"><div class="card"><div class="card-body p-2">
+    <div class="video-wrap"><video id="video" autoplay playsinline muted></video><canvas id="overlay"></canvas></div>
+  </div></div></div>
+  <div class="col-lg-4">
+    <div class="card mb-3"><div class="card-body text-center kiosk-msg" id="msg"><div class="text-muted">Look at the camera</div></div></div>
+    <div class="card"><div class="card-header">Today at this entrance</div><ul class="list-group list-group-flush kiosk-log" id="log"><li class="list-group-item text-muted small">—</li></ul></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/camera.js"></script>
+<script src="/static/js/kiosk.js"></script>
+{% endblock %}

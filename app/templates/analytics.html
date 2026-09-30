@@ -7,7 +7,7 @@
   <div class="col-lg-4"><div class="card"><div class="card-header">Absences by weekday</div><div class="card-body"><canvas id="weekday" height="220"></canvas></div></div></div>
   <div class="col-lg-6"><div class="card"><div class="card-header">Weekly trend</div><div class="card-body"><canvas id="weekly" height="140"></canvas></div></div></div>
   <div class="col-lg-6"><div class="card"><div class="card-header">Monthly trend</div><div class="card-body"><canvas id="monthly" height="140"></canvas></div></div></div>
-  <div class="col-lg-6"><div class="card"><div class="card-header">Course-wise attendance</div><div class="card-body"><canvas id="courses" height="160"></canvas></div></div></div>
+  <div class="col-lg-6"><div class="card"><div class="card-header">{{ t.group }}-wise attendance</div><div class="card-body"><canvas id="courses" height="160"></canvas></div></div></div>
   <div class="col-lg-3"><div class="card"><div class="card-header">Highest attendance</div><ul class="list-group list-group-flush">
     {% for r in ranking.highest %}<li class="list-group-item d-flex justify-content-between"><a href="/students/{{ r.student.id }}">{{ r.student.name }}</a>{{ pct(r.rate) }}</li>{% else %}<li class="list-group-item text-muted">—</li>{% endfor %}</ul></div></div>
   <div class="col-lg-3"><div class="card"><div class="card-header">Lowest attendance</div><ul class="list-group list-group-flush">

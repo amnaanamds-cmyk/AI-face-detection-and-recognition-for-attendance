@@ -4,6 +4,6 @@
 <form method="post" action="/notifications/read"><button class="btn btn-outline-secondary btn-sm">Mark all as read</button></form></div>
 <div class="list-group">
 {% for n in notes %}<div class="list-group-item {{ '' if n.is_read else 'list-group-item-warning' }}"><div class="d-flex justify-content-between"><span>{{ n.message }}</span><small class="text-muted text-nowrap ms-3">{{ n.created_at.strftime('%d-%m-%Y %H:%M') }}</small></div></div>
-{% else %}<div class="list-group-item text-muted">No alerts. Alerts are generated when a session is closed and a student's attendance drops below the threshold.</div>{% endfor %}
+{% else %}<div class="list-group-item text-muted">No alerts. Alerts are generated when a {{ t.session|lower }} is closed and a {{ t.person|lower }}'s attendance drops below the threshold.</div>{% endfor %}
 </div>
 {% endblock %}

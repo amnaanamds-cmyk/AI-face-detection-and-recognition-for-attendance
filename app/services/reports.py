@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Attendance, AttendanceStatus, ClassSession, Course, Enrollment, Student
 from app.services.analytics import rate
+from app.terminology import Terms, terms
 
 
 @dataclass
@@ -22,7 +23,18 @@ class Report:
     rows: list[list]
 
 
-def daily_report(db: Session, day: date, course_ids: list[int] | None = None) -> Report:
+def _minutes(r) -> int | None:
+    if r is None or r.marked_at is None or r.checked_out_at is None:
+        return None
+    return max(0, int((r.checked_out_at - r.marked_at).total_seconds() // 60))
+
+
+def _hm(minutes: int | None) -> str:
+    return "--" if minutes is None else f"{minutes // 60}:{minutes % 60:02d}"
+
+
+def daily_report(db: Session, day: date, course_ids: list[int] | None = None, t: Terms | None = None) -> Report:
+    t = t or terms(None)
     q = select(ClassSession).where(ClassSession.date == day)
     if course_ids is not None:
         q = q.where(ClassSession.course_id.in_(course_ids))
@@ -34,50 +46,65 @@ def daily_report(db: Session, day: date, course_ids: list[int] | None = None) ->
         ).all()
         for s in students:
             r = recs.get(s.id)
-            rows.append([
+            row = [
                 sess.course.code, sess.start_time.strftime("%H:%M"), s.student_code, s.name,
                 r.status.value.title() if r else "Not marked",
                 r.marked_at.strftime("%H:%M") if r and r.marked_at else "--",
-                f"{r.confidence:.2f}" if r and r.confidence is not None else "",
-            ])
-    return Report(f"Daily Attendance Report", f"Date: {day:%d %B %Y}",
-                  ["Course", "Session", "Student ID", "Name", "Status", "Time", "Confidence"], rows)
+            ]
+            if t.check_out:
+                row += [r.checked_out_at.strftime("%H:%M") if r and r.checked_out_at else "--", _hm(_minutes(r))]
+            row.append(f"{r.confidence:.2f}" if r and r.confidence is not None else "")
+            rows.append(row)
+    headers = [t.group, t.session, t.person_id, "Name", "Status", "Check-in" if t.check_out else "Time"]
+    if t.check_out:
+        headers += ["Check-out", "Hours"]
+    return Report("Daily Attendance Report", f"Date: {day:%d %B %Y}", headers + ["Confidence"], rows)
 
 
-def session_report(db: Session, session: ClassSession) -> Report:
-    r = daily_report(db, session.date, [session.course_id])
+def session_report(db: Session, session: ClassSession, t: Terms | None = None) -> Report:
+    t = t or terms(None)
+    r = daily_report(db, session.date, [session.course_id], t)
     start = session.start_time.strftime("%H:%M")
     r.rows = [row for row in r.rows if row[1] == start]
-    r.title = f"Session Report - {session.course.code} {session.course.name}"
+    r.title = f"{t.session} Report - {session.course.code} {session.course.name}"
     r.subtitle = f"{session.date:%d %B %Y}, {start}-{session.end_time:%H:%M}"
     return r
 
 
-def monthly_report(db: Session, year: int, month: int, course_ids: list[int] | None = None) -> Report:
+def monthly_report(db: Session, year: int, month: int, course_ids: list[int] | None = None,
+                   t: Terms | None = None) -> Report:
+    t = t or terms(None)
     start = date(year, month, 1)
     end = date(year, month, calendar.monthrange(year, month)[1])
     q = select(Attendance).where(Attendance.date >= start, Attendance.date <= end)
     if course_ids is not None:
         q = q.where(Attendance.course_id.in_(course_ids))
     per_student: dict[int, list[AttendanceStatus]] = {}
+    minutes: dict[int, int] = {}
     for r in db.scalars(q).all():
         per_student.setdefault(r.student_id, []).append(r.status)
+        minutes[r.student_id] = minutes.get(r.student_id, 0) + (_minutes(r) or 0)
     students = {s.id: s for s in db.scalars(select(Student).where(Student.id.in_(list(per_student)))).all()}
     rows = []
     for sid in sorted(per_student, key=lambda i: students[i].student_code):
         st = per_student[sid]
         pct = rate(st)
-        rows.append([
+        row = [
             students[sid].student_code, students[sid].name,
             st.count(AttendanceStatus.present), st.count(AttendanceStatus.late), st.count(AttendanceStatus.absent),
             st.count(AttendanceStatus.excused) + st.count(AttendanceStatus.leave),
             f"{pct:.1f}%" if pct is not None else "--",
-        ])
-    scope = "All courses"
+        ]
+        if t.check_out:
+            row.append(_hm(minutes.get(sid)))
+        rows.append(row)
+    scope = f"All {t.groups.lower()}"
     if course_ids is not None:
         scope = ", ".join(c.code for c in db.scalars(select(Course).where(Course.id.in_(course_ids))).all()) or "-"
-    return Report("Monthly Attendance Report", f"{start:%B %Y} - {scope}",
-                  ["Student ID", "Name", "Present", "Late", "Absent", "Excused/Leave", "Percentage"], rows)
+    headers = [t.person_id, "Name", "Present", "Late", "Absent", "Excused/Leave", "Percentage"]
+    if t.check_out:
+        headers.append("Hours on site")
+    return Report("Monthly Attendance Report", f"{start:%B %Y} - {scope}", headers, rows)
 
 
 # ------------------------------------------------------------------------ exporters

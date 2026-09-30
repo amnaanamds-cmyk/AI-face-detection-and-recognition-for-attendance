@@ -2,7 +2,7 @@
 {% block content %}
 <h1 class="h3">Face registration <small class="text-muted">{{ student.name }} ({{ student.student_code }})</small></h1>
 {% if not student.consent_given %}
-<div class="alert alert-danger">Biometric consent is not recorded for this student. <a href="/students/{{ student.id }}/edit">Record consent</a> before registering the face.</div>
+<div class="alert alert-danger">Biometric consent is not recorded for this {{ t.person|lower }}. <a href="/students/{{ student.id }}/edit">Record consent</a> before registering the face.</div>
 {% endif %}
 <p class="text-muted">Stored templates: <strong id="count">{{ templates_count }}</strong>. Capture at least {{ min_images }} images with slightly different angles
 (front, a little left, a little right) and normal lighting. Only the numeric face embedding is stored (encrypted); the photos are discarded.</p>
@@ -29,7 +29,7 @@
       </form>
       <p class="small text-muted mt-2 mb-0">Each photo must contain exactly one clearly visible face.</p>
     </div></div>
-    <a class="btn btn-link mt-2" href="/students/{{ student.id }}">&larr; Back to student</a>
+    <a class="btn btn-link mt-2" href="/students/{{ student.id }}">&larr; Back to {{ t.person|lower }}</a>
   </div>
 </div>
 {% endblock %}

@@ -8,6 +8,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, Response
+from sqlalchemy.orm import joinedload
 
 from app.config import BASE_DIR
 from app.database import SessionLocal
@@ -24,7 +25,7 @@ def _optional_user(request: Request) -> User | None:
     if not uid:
         return None
     with SessionLocal() as db:
-        user = db.get(User, uid)
+        user = db.get(User, uid, options=[joinedload(User.org)])
         return user if user and user.is_active else None
 
 

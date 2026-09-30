@@ -78,7 +78,9 @@ def test_dominant_face_used_when_background_faces_present(db):
 
     from app.vision import backends
     backends.set_backend(TwoFaces())
-    st = Student(student_code="X", name="X", consent_given=True)
+    from app.tenancy import create_org
+    org = create_org(db, "Org")
+    st = Student(student_code="X", name="X", consent_given=True, org_id=org.id)
     db.add(st)
     db.commit()
     rep = faces.enroll_images(db, st, [np.zeros((100, 200, 3), np.uint8)])

@@ -13,7 +13,7 @@ import numpy as np
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Course, Enrollment, Student
+from app.models import Course, Enrollment, Student, now
 from app.services import faces
 from app.vision.base import decode_image
 
@@ -66,7 +66,7 @@ def _truthy(v: str) -> bool:
     return str(v).strip().lower() in {"1", "yes", "y", "true", "x", "✓"}
 
 
-def import_students(db: Session, rows: list[dict[str, str]], *, default_consent: bool = False,
+def import_students(db: Session, org_id: int, rows: list[dict[str, str]], *, default_consent: bool = False,
                     auto_enroll: bool = True) -> ImportReport:
     rep = ImportReport()
     if rows:
@@ -78,7 +78,11 @@ def import_students(db: Session, rows: list[dict[str, str]], *, default_consent:
             return rep
         if unknown:
             rep.errors.append(f"ignored columns: {', '.join(unknown)}")
-    courses = db.scalars(select(Course)).all()
+    from app.models import Organization
+    from app.services.billing import plan_limit_error
+
+    org = db.get(Organization, org_id)
+    courses = db.scalars(select(Course).where(Course.org_id == org_id)).all()
     for line, raw in enumerate(rows, start=2):
         data = {COLUMN_ALIASES[_norm(k)]: v for k, v in raw.items() if _norm(k) in COLUMN_ALIASES}
         code, name = data.get("student_code", "").strip(), data.get("name", "").strip()
@@ -90,9 +94,13 @@ def import_students(db: Session, rows: list[dict[str, str]], *, default_consent:
         except ValueError:
             rep.errors.append(f"row {line}: invalid semester '{data['semester']}' - skipped")
             continue
-        st = db.scalar(select(Student).where(Student.student_code == code))
+        st = db.scalar(select(Student).where(Student.org_id == org_id, Student.student_code == code))
         if st is None:
-            st = Student(student_code=code, name=name)
+            limit = plan_limit_error(db, org)
+            if limit:
+                rep.errors.append(f"row {line}: {limit} - stopped here")
+                break
+            st = Student(student_code=code, name=name, org_id=org_id)
             db.add(st)
             rep.created += 1
         else:
@@ -103,10 +111,13 @@ def import_students(db: Session, rows: list[dict[str, str]], *, default_consent:
                 setattr(st, attr, data[attr])
         if semester is not None:
             st.semester = semester
+        was = st.consent_given
         if "consent_given" in data:
             st.consent_given = _truthy(data["consent_given"])
         elif default_consent and not st.consent_given:
             st.consent_given = True
+        if st.consent_given and not was:
+            st.consent_at = now()
         st.department = st.department or "Computer Science"
         st.section = st.section or "A"
         st.semester = st.semester or 1
@@ -118,7 +129,7 @@ def import_students(db: Session, rows: list[dict[str, str]], *, default_consent:
                     db.add(Enrollment(student_id=st.id, course_id=c.id))
                     rep.enrolled_courses += 1
     db.commit()
-    faces.gallery_cache.invalidate()
+    faces.gallery_cache.invalidate(org_id)
     return rep
 
 
@@ -141,7 +152,7 @@ class FaceImportReport:
     messages: list[str] = field(default_factory=list)
 
 
-def import_faces(db: Session, files: list[tuple[str, bytes]]) -> FaceImportReport:
+def import_faces(db: Session, org_id: int, files: list[tuple[str, bytes]]) -> FaceImportReport:
     """Enroll faces from (path, bytes) pairs grouped by the student ID in the path."""
     groups: dict[str, list[bytes]] = defaultdict(list)
     for path, data in files:
@@ -150,7 +161,7 @@ def import_faces(db: Session, files: list[tuple[str, bytes]]) -> FaceImportRepor
             groups[code].append(data)
     rep = FaceImportReport()
     for code, blobs in sorted(groups.items()):
-        st = db.scalar(select(Student).where(Student.student_code == code))
+        st = db.scalar(select(Student).where(Student.org_id == org_id, Student.student_code == code))
         if st is None:
             rep.messages.append(f"{code}: no student with this ID - {len(blobs)} photo(s) skipped")
             continue

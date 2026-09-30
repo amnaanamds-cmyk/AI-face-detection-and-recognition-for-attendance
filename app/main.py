@@ -17,19 +17,26 @@ from starlette.middleware.sessions import SessionMiddleware
 from app import database
 from app.config import settings
 from app.deps import Forbidden, NotAuthenticated, render
-from app.models import Role, User
-from app.routers import admin, analytics, auth, courses, dashboard, imports, mobile, reports, sessions, students
+from app.models import Organization, Role, User
+from app.routers import (admin, analytics, auth, billing, courses, dashboard, imports, kiosk, mobile, platform,
+                         reports, sessions, students)
 from app.security import hash_password
+from app.tenancy import create_org, upgrade_database
 
 log = logging.getLogger("attendance")
 
 
 def bootstrap_admin() -> None:
-    """Create the first administrator account if no users exist yet."""
+    """Create the first organization and its administrator if no users exist yet.
+
+    This first account is also the platform operator (superadmin) of the installation.
+    """
     with database.SessionLocal() as db:
         if db.scalar(select(User.id).limit(1)) is None:
+            org = db.scalar(select(Organization).order_by(Organization.id).limit(1)) or create_org(
+                db, settings.default_org_name, plan="selfhosted" if settings.edition == "selfhosted" else "trial")
             db.add(User(username=settings.admin_username, password_hash=hash_password(settings.admin_password),
-                        full_name="Administrator", role=Role.admin))
+                        full_name="Administrator", role=Role.admin, org_id=org.id, is_superadmin=True))
             db.commit()
             log.warning("Created initial admin user '%s' - change the password after first login!",
                         settings.admin_username)
@@ -38,6 +45,7 @@ def bootstrap_admin() -> None:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     database.init_db()
+    upgrade_database(database.engine)
     bootstrap_admin()
     yield
 
@@ -48,7 +56,7 @@ def create_app() -> FastAPI:
                        session_cookie="attendance_session", max_age=8 * 3600)
     app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 
-    for r in (mobile, auth, dashboard, imports, students, courses, sessions, analytics, reports, admin):
+    for r in (mobile, auth, dashboard, imports, students, courses, sessions, kiosk, analytics, reports, admin, platform, billing):
         app.include_router(r.router)
 
     @app.exception_handler(NotAuthenticated)

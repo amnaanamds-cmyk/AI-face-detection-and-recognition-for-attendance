@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Start your free trial - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center mt-4">
+  <div class="col-sm-11 col-md-8 col-lg-6 col-xl-5">
+    <div class="card shadow-sm"><div class="card-body p-4">
+      <div class="text-center mb-3">
+        <img src="/static/icons/icon-192.png" width="64" height="64" alt="">
+        <h1 class="h4 mt-2 mb-0">Start your free trial</h1>
+        <p class="text-muted small">14 days free · no credit card · set up in 10 minutes</p>
+      </div>
+      {% if error %}<div class="alert alert-danger py-2">{{ error }}</div>{% endif %}
+      <form method="post" action="/signup">
+        <div class="mb-3"><label class="form-label">Organization name</label>
+          <input class="form-control" name="org_name" required value="{{ form.org_name or '' }}" placeholder="e.g. City College, Acme Ltd, FitZone Gym"></div>
+        <div class="mb-3"><label class="form-label">What kind of organization?</label>
+          {% for value, label in kinds.items() %}
+          <div class="form-check"><input class="form-check-input" type="radio" name="kind" id="k{{ value }}" value="{{ value }}" {{ 'checked' if (form.kind or 'school') == value }}>
+            <label class="form-check-label" for="k{{ value }}">{{ label }}</label></div>
+          {% endfor %}</div>
+        <div class="mb-3"><label class="form-label">Your name</label><input class="form-control" name="full_name" required value="{{ form.full_name or '' }}"></div>
+        <div class="mb-3"><label class="form-label">Work e-mail</label><input class="form-control" type="email" name="email" required value="{{ form.email or '' }}"></div>
+        <div class="mb-3"><label class="form-label">Password (min. 8 characters)</label><input class="form-control" type="password" name="password" minlength="8" required></div>
+        <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="terms" id="terms" required>
+          <label class="form-check-label small" for="terms">I accept the <a href="/legal/terms" target="_blank">terms of service</a>, the
+          <a href="/legal/privacy" target="_blank">privacy policy</a> and the <a href="/legal/dpa" target="_blank">data processing agreement</a>, and I will
+          collect the consent required by law before registering anyone's face.</label></div>
+        <button class="btn btn-primary w-100 btn-lg">Create my organization</button>
+      </form>
+      <p class="text-center small mt-3 mb-0">Already have an account? <a href="/login">Log in</a></p>
+    </div></div>
+  </div>
+</div>
+{% endblock %}

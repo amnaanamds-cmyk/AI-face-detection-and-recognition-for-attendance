@@ -8,7 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.deps import can_manage_course, course_scope, flash, render, staff
+from app.terminology import terms
+from app.deps import require_active_subscription, can_manage_course, course_scope, flash, render, staff
 from app.models import AttendanceStatus, ClassSession, Course, Enrollment, SessionState, Student, User
 from app.services import app_settings
 from app.services import attendance as att
@@ -16,6 +17,10 @@ from app.vision.backends import ModelsMissingError
 from app.vision.base import decode_image
 
 router = APIRouter()
+
+
+def _t(user):
+    return terms(user.org.kind)
 
 
 def _get(db: Session, sid: int, user: User) -> ClassSession:
@@ -69,7 +74,7 @@ def create_session(request: Request, course_id: int = Form(...), day: str = Form
     if start_now:
         att.start_session(db, s)
         return RedirectResponse(f"/sessions/{s.id}/live", status_code=303)
-    flash(request, "Session created")
+    flash(request, f"{_t(user).session} created")
     return RedirectResponse(f"/sessions/{s.id}", status_code=303)
 
 
@@ -96,7 +101,7 @@ def start(sid: int, user: User = Depends(staff), db: Session = Depends(get_db)):
 def close(sid: int, request: Request, user: User = Depends(staff), db: Session = Depends(get_db)):
     s = _get(db, sid, user)
     n = att.close_session(db, s)
-    flash(request, f"Session closed. {n} student(s) automatically marked absent.")
+    flash(request, f"{_t(user).session} closed. {n} {_t(user).people.lower()} automatically marked absent.")
     return RedirectResponse(f"/sessions/{sid}", status_code=303)
 
 
@@ -106,7 +111,7 @@ def delete(sid: int, request: Request, user: User = Depends(staff), db: Session 
     att.live_trackers.pop(sid)
     db.delete(s)
     db.commit()
-    flash(request, "Session deleted")
+    flash(request, f"{_t(user).session} deleted")
     return RedirectResponse("/sessions", status_code=303)
 
 
@@ -133,6 +138,7 @@ def live(sid: int, request: Request, user: User = Depends(staff), db: Session = 
 def api_frame(sid: int, payload: dict = Body(...), user: User = Depends(staff), db: Session = Depends(get_db)):
     """Body: {"image": "data:image/jpeg;base64,..."} - one camera frame from the browser."""
     s = _get(db, sid, user)
+    require_active_subscription(user)
     try:
         frame = decode_image(payload.get("image", ""))
     except (ValueError, TypeError) as exc:

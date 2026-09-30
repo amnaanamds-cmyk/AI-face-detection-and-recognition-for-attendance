@@ -61,10 +61,11 @@ def test_pipeline_votes_liveness_multi_face():
     pipe = RecognitionPipeline(backend, LivenessChecker(min_frames=3, motion_threshold=0.06, timeout_seconds=4,
                                                         min_sharpness=0), threshold=0.5, margin=0.05, votes_required=3)
     tracker = FaceTracker()
-    frame = np.random.RandomState(0).randint(0, 255, (300, 500, 3)).astype(np.uint8)
+    camera = np.random.RandomState(0)
     yaws = [0, 20, -20, 20, -20, 0, 0, 0]
     results = []
     for i, yaw in enumerate(yaws):
+        frame = camera.randint(0, 255, (300, 500, 3)).astype(np.uint8)  # a live feed: every frame differs
         backend.frames.append([
             (scripted_face(0, (1, 0.05, 0), yaw), None),     # live student 10, turning head
             (scripted_face(250, (0, 1, 0), 0), None),        # student 20 shown on a static photo

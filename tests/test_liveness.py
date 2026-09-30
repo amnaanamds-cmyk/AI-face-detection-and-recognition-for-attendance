@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 import pytest
 
@@ -49,15 +50,26 @@ def test_affine_coordinates_change_for_real_head_rotation():
     assert np.max(np.abs(nod - front)) > 0.06
 
 
-SHARP = np.random.RandomState(1).randint(0, 255, (112, 112, 3)).astype(np.uint8)
-BLURRY = np.full((112, 112, 3), 128, np.uint8)
+_camera = np.random.RandomState(1)
+
+
+def sharp() -> np.ndarray:
+    """A detailed face crop as a real camera delivers it: every frame differs slightly (sensor noise)."""
+    return _camera.randint(0, 255, (112, 112, 3)).astype(np.uint8)
+
+
+def blurry() -> np.ndarray:
+    """A washed-out re-capture: almost no detail, but still a live video (not frozen)."""
+    field = _camera.randint(-3, 4, (8, 8)).astype(np.float32)
+    smooth = cv2.resize(field, (112, 112), interpolation=cv2.INTER_CUBIC)
+    return np.repeat(np.clip(128 + smooth, 0, 255).astype(np.uint8)[..., None], 3, axis=2)
 
 
 def test_live_person_accepted():
     chk = LivenessChecker()  # defaults: 6 frames, spread >= 0.12
     st = LivenessState()
     for i, yaw in enumerate([0, -10, -20, -10, 0, 10, 20, 10]):  # "turn your head left and right"
-        chk.update(st, i * 0.5, project(FACE_3D, yaw_deg=yaw), SHARP)
+        chk.update(st, i * 0.5, project(FACE_3D, yaw_deg=yaw), sharp())
     assert st.decision == LIVE
     assert st.score == 1.0
 
@@ -66,7 +78,7 @@ def test_small_head_motion_is_not_enough():
     chk = LivenessChecker(timeout_seconds=100)
     st = LivenessState()
     for i, yaw in enumerate([0, 3, 5, 3, 0, -3, -5, -3]):
-        chk.update(st, i * 0.5, project(FACE_3D, yaw_deg=yaw), SHARP)
+        chk.update(st, i * 0.5, project(FACE_3D, yaw_deg=yaw), sharp())
     assert st.decision == CHECKING and st.score < 1.0
 
 
@@ -74,7 +86,7 @@ def test_single_frame_jitter_is_filtered():
     chk = LivenessChecker(timeout_seconds=100)
     st = LivenessState()
     for i in range(10):  # one outlier landmark frame must not be mistaken for a head turn
-        chk.update(st, i * 0.5, project(FACE_3D, yaw_deg=30 if i == 4 else 0), SHARP)
+        chk.update(st, i * 0.5, project(FACE_3D, yaw_deg=30 if i == 4 else 0), sharp())
     assert st.decision == CHECKING
 
 
@@ -83,7 +95,7 @@ def test_moving_photo_rejected_after_timeout():
     chk = LivenessChecker(min_frames=4, motion_threshold=0.06, timeout_seconds=5)
     st = LivenessState()
     for i in range(8):  # photo waved around: big 2-D motion, no 3-D change
-        chk.update(st, i * 1.0, random_affine(flat_photo_landmarks(), rng), SHARP)
+        chk.update(st, i * 1.0, random_affine(flat_photo_landmarks(), rng), sharp())
         if i < 5:
             assert st.decision == CHECKING
     assert st.decision == SPOOF
@@ -93,17 +105,17 @@ def test_blurry_replay_rejected():
     chk = LivenessChecker(min_frames=3, min_sharpness=15)
     st = LivenessState()
     for i, yaw in enumerate([0, 10, 20]):
-        chk.update(st, i, project(FACE_3D, yaw_deg=yaw), BLURRY)
+        chk.update(st, i, project(FACE_3D, yaw_deg=yaw), blurry())
     assert st.decision == SPOOF
 
 
 def test_decision_is_sticky():
     chk = LivenessChecker(min_frames=2, motion_threshold=0.06)
     st = LivenessState()
-    chk.update(st, 0, project(FACE_3D, yaw_deg=0), SHARP)
-    chk.update(st, 1, project(FACE_3D, yaw_deg=20), SHARP)
+    chk.update(st, 0, project(FACE_3D, yaw_deg=0), sharp())
+    chk.update(st, 1, project(FACE_3D, yaw_deg=20), sharp())
     assert st.decision == LIVE
-    chk.update(st, 100, flat_photo_landmarks(), BLURRY)
+    chk.update(st, 100, flat_photo_landmarks(), blurry())
     assert st.decision == LIVE
 
 
@@ -111,7 +123,7 @@ def test_strongly_rolled_frames_are_ignored():
     chk = LivenessChecker(timeout_seconds=100)
     st = LivenessState()
     for i, yaw in enumerate([0, -20, 20, -20, 20, -20, 20, 0]):
-        chk.update(st, i, project(FACE_3D, yaw_deg=yaw), SHARP, roll=40.0)
+        chk.update(st, i, project(FACE_3D, yaw_deg=yaw), sharp(), roll=40.0)
     assert st.samples == [] and st.decision == CHECKING
 
 
@@ -122,3 +134,24 @@ def test_roll_degrees():
     rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
     assert roll_degrees(lm @ rot.T) == pytest.approx(25, abs=1e-6)
     assert roll_degrees(lm[[1, 0, 2, 4, 3]]) == pytest.approx(0, abs=1e-6)  # eye order does not matter
+
+
+def test_frozen_video_rejected_even_when_other_cues_pass():
+    """A still picture injected into the video stream (virtual camera) gives identical frames."""
+    still = sharp()
+    chk = LivenessChecker(min_frames=6, motion_threshold=0.12, timeout_seconds=12, mode="cnn")
+    st = LivenessState()
+    for i in range(8):
+        chk.update(st, i * 0.5, project(FACE_3D), still.copy(), cnn_live=0.99)
+    assert st.decision == SPOOF and "frozen" in st.reason
+
+
+def test_cnn_needs_enough_frames_to_rule_out_a_frozen_feed():
+    chk = LivenessChecker(min_frames=6, mode="cnn")
+    st = LivenessState()
+    for i in range(4):
+        chk.update(st, i * 0.5, project(FACE_3D), sharp(), cnn_live=0.99)
+    assert st.decision == CHECKING  # CNN alone is not trusted before the feed has been seen to move
+    for i in range(4, 5):
+        chk.update(st, i * 0.5, project(FACE_3D), sharp(), cnn_live=0.99)
+    assert st.decision == LIVE

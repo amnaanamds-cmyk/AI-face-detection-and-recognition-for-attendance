@@ -9,7 +9,7 @@ from app import database
 from app.models import Enrollment, FaceEmbedding, Student
 from app.vision.liveness import CHECKING, LIVE, SPOOF, LivenessChecker, LivenessState
 from tests.conftest import face_image, login, noisy
-from tests.test_liveness import FACE_3D, SHARP, project
+from tests.test_liveness import FACE_3D, project, sharp
 
 
 def _jpg(img):
@@ -105,12 +105,12 @@ def test_settings_liveness_mode_validation(client):
 def test_cnn_mode_passive_accept_and_reject():
     chk = LivenessChecker(mode="cnn")
     st = LivenessState()
-    for i in range(3):
-        chk.update(st, i * 0.5, project(FACE_3D), SHARP, cnn_live=0.97)
+    for i in range(5):  # 5 frames: CNN votes + proof that the video is not a frozen still image
+        chk.update(st, i * 0.5, project(FACE_3D), sharp(), cnn_live=0.97)
     assert st.decision == LIVE  # no head movement needed
     st = LivenessState()
     for i in range(3):
-        chk.update(st, i * 0.5, project(FACE_3D, yaw_deg=(-20) ** i % 40), SHARP, cnn_live=0.02)
+        chk.update(st, i * 0.5, project(FACE_3D, yaw_deg=(-20) ** i % 40), sharp(), cnn_live=0.02)
     assert st.decision == SPOOF and "anti-spoofing" in st.reason
 
 
@@ -118,10 +118,10 @@ def test_cnn_plus_motion_requires_both():
     chk = LivenessChecker(mode="cnn+motion", timeout_seconds=100)
     st = LivenessState()
     for i in range(8):  # CNN says live, but the face never turns
-        chk.update(st, i * 0.5, project(FACE_3D), SHARP, cnn_live=0.95)
+        chk.update(st, i * 0.5, project(FACE_3D), sharp(), cnn_live=0.95)
     assert st.decision == CHECKING
     for i, yaw in enumerate([0, -20, -20, -20, 0, 20, 20, 20]):  # turn left, hold ~1 s, turn right, hold
-        chk.update(st, 5 + i * 0.5, project(FACE_3D, yaw_deg=yaw), SHARP, cnn_live=0.95)
+        chk.update(st, 5 + i * 0.5, project(FACE_3D, yaw_deg=yaw), sharp(), cnn_live=0.95)
     assert st.decision == LIVE
 
 
@@ -129,5 +129,5 @@ def test_cnn_mode_without_model_falls_back_to_motion():
     chk = LivenessChecker(mode="cnn", timeout_seconds=100)
     st = LivenessState()
     for i, yaw in enumerate([0, -20, 20, -20, 20, -20, 20]):
-        chk.update(st, i * 0.5, project(FACE_3D, yaw_deg=yaw), SHARP, cnn_live=None)
+        chk.update(st, i * 0.5, project(FACE_3D, yaw_deg=yaw), sharp(), cnn_live=None)
     assert st.decision == LIVE

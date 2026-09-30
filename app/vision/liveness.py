@@ -84,6 +84,21 @@ class LivenessState:
     decision: str = CHECKING
     score: float = 0.0
     reason: str = ""
+    prev_crop: np.ndarray | None = None  # small grey copy of the last face crop (frozen-feed test)
+    frame_diffs: list[float] = field(default_factory=list)
+
+
+def frame_difference(prev: np.ndarray | None, face_crop: np.ndarray) -> tuple[float | None, np.ndarray]:
+    """Mean absolute difference between this and the previous face crop (64x64 grey).
+
+    A real camera never delivers two identical frames: sensor noise alone changes every pixel.
+    A still picture fed into the video stream by software (a "virtual camera" injection attack,
+    which a print/screen anti-spoofing CNN cannot see) gives bit-identical faces frame after frame.
+    """
+    grey = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY) if face_crop.ndim == 3 else face_crop
+    small = cv2.resize(grey, (64, 64), interpolation=cv2.INTER_AREA).astype(np.float32)
+    diff = None if prev is None else float(np.abs(small - prev).mean())
+    return diff, small
 
 
 def smoothed(values: np.ndarray) -> np.ndarray:
@@ -127,6 +142,8 @@ class LivenessChecker:
     cnn_threshold: float = 0.7       # median P(live) needed to accept
     cnn_reject: float = 0.3          # median P(live) below this = spoof
     cnn_min_frames: int = 3
+    frozen_diff: float = 0.05        # below this, two consecutive face crops count as identical (a still gives 0.0)
+    frozen_pairs: int = 4            # frame pairs checked before a face can be accepted (~2.5 s at 2 fps)
 
     def update(self, state: LivenessState, t: float, landmarks: np.ndarray, face_crop: np.ndarray,
                roll: float | None = None, cnn_live: float | None = None) -> LivenessState:
@@ -141,6 +158,14 @@ class LivenessChecker:
 
         if cnn_live is not None:
             state.cnn.append(float(cnn_live))
+        if face_crop is not None and face_crop.size:
+            diff, state.prev_crop = frame_difference(state.prev_crop, face_crop)
+            if diff is not None:
+                state.frame_diffs.append(diff)
+        pairs = max(1, min(self.frozen_pairs, self.min_frames - 1))
+        recent_diffs = state.frame_diffs[-pairs:]
+        feed_checked = len(recent_diffs) >= pairs
+        frozen = feed_checked and max(recent_diffs) < self.frozen_diff
         rolled = roll is not None and abs(roll) > self.max_roll_degrees
         if not rolled:
             a, b = affine_nose_coordinates(landmarks)
@@ -162,11 +187,14 @@ class LivenessChecker:
             parts.append(min(1.0, motion / self.motion_threshold) if self.motion_threshold > 0 else 1.0)
         state.score = min(parts)
 
-        if len(state.sharpness) >= self.min_frames and float(np.median(state.sharpness)) < self.min_sharpness:
+        if frozen:
+            state.decision, state.reason = SPOOF, "frozen video: identical frames (still image fed to the camera?)"
+        elif len(state.sharpness) >= self.min_frames and float(np.median(state.sharpness)) < self.min_sharpness:
             state.decision, state.reason = SPOOF, "image too blurred (screen/print re-capture?)"
         elif use_cnn and cnn_ready and cnn_med < self.cnn_reject:
             state.decision, state.reason = SPOOF, f"anti-spoofing model: P(live)={cnn_med:.2f}"
-        elif (not use_cnn or (cnn_ready and cnn_med >= self.cnn_threshold)) and (not use_motion or motion_ok):
+        elif (feed_checked and (not use_cnn or (cnn_ready and cnn_med >= self.cnn_threshold))
+              and (not use_motion or motion_ok)):
             state.decision, state.reason = LIVE, ""
         elif elapsed >= self.timeout_seconds and (len(state.samples) >= self.min_frames or cnn_ready):
             state.decision = SPOOF

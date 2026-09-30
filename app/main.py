@@ -18,8 +18,8 @@ from app import database
 from app.config import settings
 from app.deps import Forbidden, NotAuthenticated, render
 from app.models import Organization, Role, User
-from app.routers import (admin, analytics, auth, billing, courses, dashboard, imports, kiosk, mobile, platform,
-                         reports, sessions, students)
+from app.routers import (admin, analytics, auth, billing, courses, dashboard, imports, kiosk, legal, mobile,
+                         platform, reports, sessions, students)
 from app.security import hash_password
 from app.tenancy import create_org, upgrade_database
 
@@ -56,7 +56,7 @@ def create_app() -> FastAPI:
                        session_cookie="attendance_session", max_age=8 * 3600)
     app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 
-    for r in (mobile, auth, dashboard, imports, students, courses, sessions, kiosk, analytics, reports, admin, platform, billing):
+    for r in (mobile, legal, auth, dashboard, imports, students, courses, sessions, kiosk, analytics, reports, admin, platform, billing):
         app.include_router(r.router)
 
     @app.exception_handler(NotAuthenticated)

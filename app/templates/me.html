@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 {% from "_macros.html" import status_badge, pct %}
 {% block content %}
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
 <h1 class="h3">{{ student.name }} <small class="text-muted">{{ student.student_code }}</small></h1>
+<a class="btn btn-sm btn-outline-secondary" href="/me/export"><i class="bi bi-download"></i> Download my data</a></div>
 <p class="text-muted">{{ student.department }}{% if t.level %} &middot; {{ t.level }} {{ student.semester }} &middot; {{ t.subgroup }} {{ student.section }}{% endif %}</p>
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3"><div class="card stat"><div class="card-body"><div class="small text-muted">Total classes</div><div class="display-6">{{ s.total_classes }}</div></div></div></div>

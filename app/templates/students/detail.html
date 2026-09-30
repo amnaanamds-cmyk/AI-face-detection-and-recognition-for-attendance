@@ -10,6 +10,7 @@
   <div class="btn-group">
     <a class="btn btn-primary" href="/students/{{ student.id }}/enroll"><i class="bi bi-camera"></i> Register face</a>
     <a class="btn btn-outline-secondary" href="/students/{{ student.id }}/edit">Edit</a>
+    <a class="btn btn-outline-secondary" href="/students/{{ student.id }}/export" title="Everything stored about this person (right of access)"><i class="bi bi-download"></i> Data</a>
     <form method="post" action="/students/{{ student.id }}/delete" onsubmit="return confirm('Delete this student and ALL their data (including face templates)?')">
       <button class="btn btn-outline-danger rounded-start-0">Delete</button></form>
   </div>{% endif %}

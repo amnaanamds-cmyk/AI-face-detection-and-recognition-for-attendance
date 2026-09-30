@@ -4,8 +4,11 @@
 
 * YuNet  (face detection, ~0.2 MB)   - https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet
 * SFace  (face recognition, ~37 MB)  - https://github.com/opencv/opencv_zoo/tree/main/models/face_recognition_sface
-* Anti-spoofing CNN (~1.9 MB)        - https://github.com/hairymax/Face-AntiSpoofing (optional; without it
-  liveness falls back to the head-movement test)
+* Research anti-spoofing CNN (~1.9 MB, only with --include-research-antispoof)
+  https://github.com/hairymax/Face-AntiSpoofing - trained on CelebA-Spoof, which is licensed for
+  NON-COMMERCIAL RESEARCH ONLY and the repository has no license: fine for a university project,
+  NOT for a product you sell. For a commercial deployment train your own model
+  (training/antispoof/README.md) or license one; without a CNN, liveness uses the head-movement test.
 """
 from __future__ import annotations
 
@@ -46,6 +49,9 @@ MODELS = {
 }
 
 
+RESEARCH_ONLY = {"AntiSpoofing_print-replay_1.5_128.onnx"}
+
+
 def git_fetch(repo: str, rev: str, path: str, target: Path) -> bool:
     """Fallback for networks that block raw file downloads but allow git."""
     import shutil
@@ -76,12 +82,18 @@ def sha256(path: Path) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dir", default=str(ROOT / "models"))
+    ap.add_argument("--include-research-antispoof", action="store_true",
+                    help="also download the NON-COMMERCIAL research anti-spoofing model (academic use only)")
     args = ap.parse_args()
     out_dir = Path(args.dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     ok = True
     for name, (urls, digest, git) in MODELS.items():
         target = out_dir / name
+        if name in RESEARCH_ONLY and not args.include_research_antispoof:
+            if not target.exists():
+                print(f"[skip] {name} (research-only license; use --include-research-antispoof for academic use)")
+            continue
         if target.exists() and sha256(target) == digest:
             print(f"[ok]   {name} already present")
             continue

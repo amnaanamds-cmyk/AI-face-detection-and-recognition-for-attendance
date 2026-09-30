@@ -117,6 +117,12 @@ class Settings:
     stripe_secret_key: str = field(default_factory=lambda: _env("STRIPE_SECRET_KEY", ""))
     stripe_webhook_secret: str = field(default_factory=lambda: _env("STRIPE_WEBHOOK_SECRET", ""))
 
+    # --- Legal pages (shown in /legal/*; have them reviewed by a lawyer) ---
+    legal_company: str = field(default_factory=lambda: _env("LEGAL_COMPANY_NAME", "[Your company name]"))
+    legal_email: str = field(default_factory=lambda: _env("LEGAL_CONTACT_EMAIL", "[privacy@your-domain.com]"))
+    legal_address: str = field(default_factory=lambda: _env("LEGAL_ADDRESS", "[Your registered address]"))
+    legal_country: str = field(default_factory=lambda: _env("LEGAL_COUNTRY", "[Country of registration]"))
+
     # --- Notifications (optional e-mail) ------------------------------------
     smtp_host: str = field(default_factory=lambda: _env("SMTP_HOST", ""))
     smtp_port: int = field(default_factory=lambda: _env_int("SMTP_PORT", 587))

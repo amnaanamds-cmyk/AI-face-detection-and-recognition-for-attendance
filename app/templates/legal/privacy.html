@@ -1,0 +1,41 @@
+{% extends "legal/_base.html" %}
+{% block legal %}
+<h1 class="h3">Privacy policy</h1>
+<p><strong>{{ s.legal_company }}</strong>, {{ s.legal_address }} ("we") operates {{ app_name }} (the "Service").
+Organizations such as schools, companies and gyms ("Customers") use the Service to record the attendance of their students,
+employees or members ("People"). Contact: {{ s.legal_email }}.</p>
+<h2 class="h5">1. Roles</h2>
+<p>For the data of People, the <strong>Customer is the controller</strong> and we are a <strong>processor</strong> acting only on the
+Customer's documented instructions (see the <a href="/legal/dpa">data processing agreement</a>). For the account data of Customer
+administrators we are the controller.</p>
+<h2 class="h5">2. What we process</h2>
+<ul>
+<li><strong>Profile data</strong> entered by the Customer: ID, name, group, optional e-mail and phone.</li>
+<li><strong>Biometric templates</strong>: from 3-5 photos taken at registration, the Service computes a numerical face template
+(128 numbers). <strong>Photos are not stored</strong>; templates are stored encrypted and are only used to recognize the person
+for attendance at that Customer. Templates are never shared between Customers and never used to train models.</li>
+<li><strong>Camera frames</strong> during attendance are processed in memory and discarded immediately.</li>
+<li><strong>Attendance records</strong>: date, check-in / check-out time, status, recognition confidence.</li>
+<li><strong>Account and technical data</strong>: administrator names, e-mail addresses, login logs.</li>
+</ul>
+<h2 class="h5">3. Legal basis and consent</h2>
+<p>Face templates are special-category (biometric) data. The Service only allows registering a face after the Customer confirms
+that the person has given <strong>explicit, informed, written consent</strong> (see the <a href="/legal/consent-form">consent form</a>),
+and records the date of that consent. People must always be offered an alternative way to record attendance (e.g. manual
+registration) and can withdraw consent at any time.</p>
+<h2 class="h5">4. Retention</h2>
+<p>Customers configure retention. By default, face templates are deleted automatically when a person has not been recognized
+for 365 days, and immediately when the person is deactivated or deleted. Deleting a person deletes all their data.</p>
+<h2 class="h5">5. Rights of People</h2>
+<p>People can ask the Customer for access, a copy (the Service exports all data of a person as a file), correction, deletion,
+restriction, or withdrawal of consent. We help Customers answer such requests. People can also complain to their data
+protection authority.</p>
+<h2 class="h5">6. Security</h2>
+<p>Encryption of templates (AES with authentication), hashed passwords, per-Customer isolation, role-based access, HTTPS,
+audit log of automatic decisions, backups. Staff access to Customer data is restricted to support requests by the Customer.</p>
+<h2 class="h5">7. Sub-processors and transfers</h2>
+<p>[List your hosting provider, payment provider (e.g. Stripe for billing data only), e-mail provider, and where data is stored.
+Describe the safeguards for transfers outside the EEA/UK if any.]</p>
+<h2 class="h5">8. Changes</h2>
+<p>We will inform Customers of material changes 30 days in advance. Last updated: [date].</p>
+{% endblock %}

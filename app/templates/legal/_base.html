@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center"><div class="col-lg-9">
+  <div class="alert alert-warning small"><strong>Template.</strong> This text is a starting point written for a face-recognition
+    attendance service. It is not legal advice. Have it reviewed and adapted by a qualified lawyer for your country and your customers'
+    countries before you accept customers (biometric data is regulated by the GDPR, UK GDPR, Illinois BIPA, Texas CUBI and others).</div>
+  <nav class="small mb-3">{% for k, v in pages.items() %}<a href="/legal/{{ k }}" class="me-3">{{ v }}</a>{% endfor %}</nav>
+  <div class="card card-body legal">{% block legal %}{% endblock %}</div>
+</div></div>
+{% endblock %}

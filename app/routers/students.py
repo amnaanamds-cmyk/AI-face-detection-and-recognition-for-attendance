@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -16,6 +18,7 @@ from app.services.accounts import person_username
 from app.services.billing import plan_limit_error
 from app.models import now
 from app.services import analytics, faces
+from app.services.privacy import export_person
 from app.vision.backends import ModelsMissingError
 from app.vision.base import decode_image
 
@@ -229,3 +232,12 @@ def delete_faces(sid: int, request: Request, user: User = Depends(admin_only), d
     n = faces.delete_faces(db, get_student(db, user, sid).id)
     flash(request, f"Deleted {n} face template(s)")
     return RedirectResponse(f"/students/{sid}", status_code=303)
+
+
+@router.get("/students/{sid}/export")
+def export_student(sid: int, user: User = Depends(admin_only), db: Session = Depends(get_db)):
+    """Right of access / portability: everything stored about one person, as JSON."""
+    st = get_student(db, user, sid)
+    body = json.dumps(export_person(db, st), indent=2, ensure_ascii=False)
+    return Response(body, media_type="application/json",
+                    headers={"Content-Disposition": f'attachment; filename="data_{st.student_code}.json"'})

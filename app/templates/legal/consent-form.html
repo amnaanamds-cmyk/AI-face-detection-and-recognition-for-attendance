@@ -1,0 +1,21 @@
+{% extends "legal/_base.html" %}
+{% block legal %}
+<h1 class="h3">Consent to the use of my face for attendance</h1>
+<p>Organization: ________________________________ (the "Organization")</p>
+<p>I, ________________________________ (ID ______________), agree that the Organization uses {{ app_name }} to record my
+attendance by face recognition. I understand that:</p>
+<ol>
+<li>At registration a few photos of my face are taken. They are converted into an encrypted numerical template and the
+photos are <strong>not stored</strong>.</li>
+<li>The template is used <strong>only</strong> to recognize me for attendance at this Organization. It is not shared with anyone
+else and not used for any other purpose.</li>
+<li>Camera images during attendance are processed immediately and not stored.</li>
+<li>My template is deleted when I leave, when I have not been recognized for [365] days, or when I withdraw this consent.</li>
+<li>Giving consent is <strong>voluntary</strong>. If I do not consent or withdraw consent, my attendance is recorded another way,
+without any disadvantage to me.</li>
+<li>I can ask for a copy of all data stored about me, and for correction or deletion, at any time by contacting
+________________________.</li>
+</ol>
+<p class="mt-4">Date: ______________ &nbsp;&nbsp; Signature: ______________________________</p>
+<p class="small text-muted">For minors: signature of a parent or legal guardian is required where the law requires it.</p>
+{% endblock %}

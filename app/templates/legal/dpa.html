@@ -1,0 +1,26 @@
+{% extends "legal/_base.html" %}
+{% block legal %}
+<h1 class="h3">Data processing agreement (Art. 28 GDPR)</h1>
+<p>Between the Customer (controller) and <strong>{{ s.legal_company }}</strong>, {{ s.legal_address }} (processor).</p>
+<h2 class="h5">1. Subject and duration</h2>
+<p>Processing of personal data for recording attendance of the Customer's students, employees or members, for the duration of the
+subscription plus 30 days for export.</p>
+<h2 class="h5">2. Categories</h2>
+<p>Data subjects: students, employees, members, visitors registered by the Customer; Customer staff users.
+Data: identification data, group membership, attendance records, <strong>biometric templates (special category)</strong>.</p>
+<h2 class="h5">3. Processor obligations</h2>
+<ul>
+<li>Process only on documented instructions of the Customer; confidentiality of personnel.</li>
+<li>Technical and organizational measures: encryption of biometric templates, no storage of face photos, tenant isolation,
+access control, HTTPS, logging, backups, incident response.</li>
+<li>Engage sub-processors only with prior information of the Customer: [list].</li>
+<li>Assist with data-subject requests (export and deletion functions are built into the Service), security incidents
+(notification without undue delay, at most 48 hours) and data protection impact assessments.</li>
+<li>Delete or return all data at the end of the service.</li>
+<li>Make available information necessary to demonstrate compliance and allow audits.</li>
+</ul>
+<h2 class="h5">4. Customer obligations</h2>
+<p>Lawful basis and explicit consent for biometric processing, DPIA where required, information of data subjects,
+configuration of retention periods.</p>
+<p class="mt-4">Signatures: ______________________ (Customer) &nbsp;&nbsp; ______________________ ({{ s.legal_company }})</p>
+{% endblock %}

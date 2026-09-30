@@ -16,6 +16,8 @@ DEFAULTS: dict[str, tuple[object, type, str]] = {
     "match_margin": (env.match_margin, float, "Required margin over the 2nd-best student"),
     "votes_required": (env.votes_required, int, "Agreeing frames required before marking"),
     "checkout_after_minutes": (30, int, "Offices / gyms: seen again after this many minutes = check-out"),
+    "face_retention_days": (365, int, "Delete face templates of people not seen for this many days (0 = never)"),
+    "attendance_retention_days": (0, int, "Delete attendance records older than this many days (0 = keep)"),
     "liveness_enabled": (env.liveness_enabled, bool, "Require liveness (anti-spoofing) by default"),
     "liveness_mode": (env.liveness_mode, str, "Liveness method: auto | cnn | motion | cnn+motion"),
     "antispoof_threshold": (env.antispoof_threshold, float, "Anti-spoofing CNN: min. P(live) to accept"),

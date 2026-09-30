@@ -1,0 +1,30 @@
+{% extends "legal/_base.html" %}
+{% block legal %}
+<h1 class="h3">Terms of service</h1>
+<p>These terms govern the use of {{ app_name }} provided by <strong>{{ s.legal_company }}</strong> ({{ s.legal_country }}).
+By creating an account you accept them on behalf of your organization.</p>
+<h2 class="h5">1. The service</h2>
+<p>A software service that records attendance using face recognition, with dashboards, reports and apps. Recognition results are
+<strong>probabilistic</strong>: they can be wrong, and the Customer must keep a human able to review and correct attendance
+records. The Service must not be used as the sole basis for decisions with legal or similarly significant effects on a person.</p>
+<h2 class="h5">2. Customer obligations</h2>
+<ul>
+<li>Obtain and document explicit consent before registering anyone's face, offer an alternative to face recognition, and
+inform people with a clear notice at the places where cameras are used.</li>
+<li>Comply with the laws applicable to you (e.g. GDPR, BIPA, employment and education law, works-council rules).</li>
+<li>Do not use the Service for surveillance of public spaces, identification of people who are not registered, or any
+purpose other than attendance.</li>
+<li>Keep account credentials secret; you are responsible for your users.</li>
+</ul>
+<h2 class="h5">3. Plans, trial and payment</h2>
+<p>A free trial of 14 days is offered. Paid plans are billed monthly in advance through our payment provider and renew
+automatically until cancelled. If a payment fails, recognition features are paused; your data remains accessible and
+exportable. Prices exclude taxes unless stated otherwise.</p>
+<h2 class="h5">4. Data</h2>
+<p>You own your data. We process it as described in the <a href="/legal/privacy">privacy policy</a> and the
+<a href="/legal/dpa">data processing agreement</a>. After termination you can export your data for 30 days; then it is deleted.</p>
+<h2 class="h5">5. Availability and support</h2>
+<p>[Describe support channels and target availability.]</p>
+<h2 class="h5">6. Liability</h2>
+<p>[Limitation of liability, warranty disclaimer and governing law - to be written by your lawyer.]</p>
+{% endblock %}

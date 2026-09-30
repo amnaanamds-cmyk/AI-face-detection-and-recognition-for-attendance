@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import json
 import os
 from pathlib import Path
 
@@ -10,7 +11,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import joinedload
 
-from app.config import BASE_DIR
+from app.config import BASE_DIR, settings
 from app.database import SessionLocal
 from app.deps import render
 from app.models import User
@@ -48,7 +49,10 @@ def service_worker():
 
 @router.get("/manifest.webmanifest", include_in_schema=False)
 def manifest():
-    return FileResponse(STATIC / "manifest.webmanifest", media_type="application/manifest+json")
+    data = json.loads((STATIC / "manifest.webmanifest").read_text())
+    data["name"] = settings.app_name
+    data["short_name"] = settings.app_name[:12]
+    return Response(json.dumps(data), media_type="application/manifest+json")
 
 
 @router.get("/favicon.ico", include_in_schema=False)

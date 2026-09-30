@@ -42,8 +42,24 @@ def bootstrap_admin() -> None:
                         settings.admin_username)
 
 
+def check_production_settings() -> None:
+    """The hosted edition is on the internet: refuse to start with the demo defaults."""
+    if settings.edition != "saas":
+        return
+    problems = []
+    if settings.admin_password == "admin123":
+        problems.append("ADMIN_PASSWORD is the default 'admin123'")
+    if not settings.public_base_url.startswith("https://"):
+        problems.append("PUBLIC_BASE_URL must be your https:// address")
+    if "[" in settings.legal_company or "[" in settings.legal_email:
+        log.warning("LEGAL_COMPANY_NAME / LEGAL_CONTACT_EMAIL are not set - the legal pages show placeholders")
+    if problems:
+        raise RuntimeError("EDITION=saas: " + "; ".join(problems))
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    check_production_settings()
     database.init_db()
     upgrade_database(database.engine)
     bootstrap_admin()
@@ -53,7 +69,8 @@ async def lifespan(_app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(title=settings.app_name, lifespan=lifespan)
     app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, same_site="lax",
-                       session_cookie="attendance_session", max_age=8 * 3600)
+                       session_cookie="attendance_session", max_age=8 * 3600,
+                       https_only=settings.public_base_url.startswith("https://"))
     app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 
     for r in (mobile, legal, auth, dashboard, imports, students, courses, sessions, kiosk, analytics, reports, admin, platform, billing):

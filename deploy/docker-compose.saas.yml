@@ -1,0 +1,49 @@
+# Hosted (SaaS) edition: app + PostgreSQL + Caddy (automatic HTTPS from Let's Encrypt).
+#   cd deploy && cp saas.env.example saas.env   # fill it in
+#   docker compose -f docker-compose.saas.yml --env-file saas.env up -d --build
+# See docs/SAAS_DEPLOYMENT.md.
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: attendance
+      POSTGRES_USER: attendance
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U attendance"]
+      interval: 5s
+      retries: 10
+
+  app:
+    build: ..
+    restart: unless-stopped
+    depends_on:
+      db: {condition: service_healthy}
+    # one process: live face tracks are kept in memory (scale up with a bigger server, not more workers)
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000",
+              "--proxy-headers", "--forwarded-allow-ips", "*"]
+    env_file: saas.env
+    environment:
+      EDITION: saas
+      DATABASE_URL: postgresql+psycopg://attendance:${DB_PASSWORD}@db/attendance
+      PUBLIC_BASE_URL: https://${DOMAIN:?set DOMAIN}
+    volumes: [appdata:/app/data]
+    expose: ["8000"]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [app]
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+
+volumes:
+  pgdata:
+  appdata:
+  caddydata:

@@ -43,6 +43,16 @@ def apply_retention(db: Session, org_id: int, when: datetime | None = None) -> d
     return {"templates": removed_templates, "records": removed_records}
 
 
+def purge_biometrics(db: Session, org_id: int) -> int:
+    """Delete every face template of an organization (account closed). Attendance data stays exportable."""
+    rows = db.scalars(select(FaceEmbedding).join(Student).where(Student.org_id == org_id)).all()
+    for e in rows:
+        db.delete(e)
+    db.commit()
+    gallery_cache.invalidate(org_id)
+    return len(rows)
+
+
 def export_person(db: Session, student: Student) -> dict:
     """Everything stored about one person (GDPR right of access / portability).
 

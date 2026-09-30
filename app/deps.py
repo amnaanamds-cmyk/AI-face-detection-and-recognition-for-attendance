@@ -14,6 +14,7 @@ from app.models import AttendanceStatus, ClassSession, Course, Enrollment, Role,
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 templates.env.globals["app_name"] = settings.app_name
+templates.env.globals["support_email"] = settings.support_email
 templates.env.globals["statuses"] = [s.value for s in AttendanceStatus]
 templates.env.globals["signup_enabled"] = settings.public_signup
 templates.env.globals["edition"] = settings.edition

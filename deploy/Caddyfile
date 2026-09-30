@@ -1,0 +1,14 @@
+{$DOMAIN} {
+	encode gzip
+	# camera frames are sent as images; allow reasonably large requests
+	request_body {
+		max_size 20MB
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "camera=(self), microphone=()"
+	}
+	reverse_proxy app:8000
+}

@@ -9,9 +9,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.deps import course_scope, current_user, render
+from app.config import settings
+from app.deps import NotAuthenticated, course_scope, current_user, render
 from app.models import Attendance, Notification, Role, User
 from app.services import analytics
+from app.services.billing import PLANS, TRIAL_DAYS
 from app.services.privacy import apply_retention, export_person
 from app.services.attendance import sync_scheduled_sessions
 
@@ -27,7 +29,14 @@ def _maybe_retention(db: Session, org_id: int) -> None:
 
 
 @router.get("/")
-def home(request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
+def home(request: Request, db: Session = Depends(get_db)):
+    try:
+        user = current_user(request, db)
+    except NotAuthenticated:
+        if settings.public_signup:  # SaaS: visitors see the product page, not a login box
+            return render(request, "landing.html", None, plans=[p for k, p in PLANS.items() if k not in ("trial", "selfhosted")],
+                          trial_days=TRIAL_DAYS)
+        raise
     if user.role == Role.student:
         return RedirectResponse("/me", status_code=303)
     sync_scheduled_sessions(db, user.org_id)

@@ -10,6 +10,7 @@ from app.database import get_db
 from app.deps import flash, render, superadmin
 from app.models import Organization, Student, User
 from app.services.billing import PLANS, plan_of
+from app.services.privacy import purge_biometrics
 
 router = APIRouter()
 
@@ -40,6 +41,12 @@ def update_org(oid: int, request: Request, action: str = Form(...), plan: str = 
         else:
             org.is_active = not org.is_active
             flash(request, f"{org.name} {'activated' if org.is_active else 'suspended'}")
+    elif action == "purge":
+        if org.is_active:
+            flash(request, "Suspend the organization before deleting its face data", "danger")
+        else:
+            n = purge_biometrics(db, org.id)
+            flash(request, f"{org.name}: {n} face templates deleted")
     elif action == "plan" and plan in PLANS:
         org.plan, org.plan_status = plan, "active"
         flash(request, f"{org.name}: plan set to {PLANS[plan].name}")

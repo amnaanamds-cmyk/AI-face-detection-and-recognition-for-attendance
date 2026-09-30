@@ -62,7 +62,9 @@ def _secret_key() -> str:
 
 @dataclass
 class Settings:
-    app_name: str = "Smart Classroom Attendance"
+    # product / brand name shown everywhere (set APP_NAME to your own, trademark-checked name)
+    app_name: str = field(default_factory=lambda: _env("APP_NAME", "FaceAttend"))
+    support_email: str = field(default_factory=lambda: _env("SUPPORT_EMAIL", ""))
     database_url: str = field(default_factory=lambda: _env("DATABASE_URL", f"sqlite:///{BASE_DIR / 'data' / 'attendance.db'}"))
     secret_key: str = field(default_factory=_secret_key)
     # Optional separate key for encrypting face embeddings (defaults to SECRET_KEY).

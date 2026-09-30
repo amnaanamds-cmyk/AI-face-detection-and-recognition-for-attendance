@@ -20,6 +20,8 @@
       <button class="btn btn-sm btn-outline-primary">Set</button></form>
     <form method="post" action="/platform/orgs/{{ o.id }}"><input type="hidden" name="action" value="toggle">
       <button class="btn btn-sm btn-outline-{{ 'danger' if o.is_active else 'success' }}">{{ 'Suspend' if o.is_active else 'Activate' }}</button></form>
+    {% if not o.is_active %}<form method="post" action="/platform/orgs/{{ o.id }}" onsubmit="return confirm('Permanently delete all face templates of {{ o.name }}?')">
+      <input type="hidden" name="action" value="purge"><button class="btn btn-sm btn-outline-danger" title="Account closed: delete biometric data">Delete face data</button></form>{% endif %}
   </td></tr>
   {% endfor %}</tbody></table></div></div>
 <p class="small text-muted mt-2">Customer data is not visible here on purpose: operators only manage accounts and plans.</p>

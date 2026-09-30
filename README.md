@@ -20,6 +20,20 @@ Camera ─► Face detection (YuNet) ─► Tracking ─► Alignment ─► Emb
 | **Reports** | openpyxl (Excel), ReportLab (PDF), CSV |
 | **Security** | PBKDF2 password hashing, role-based access, Fernet-encrypted face embeddings, no raw face photos stored |
 
+### Product editions
+
+The same code runs as a **hosted SaaS** (many customer organizations, sign-up, Stripe
+subscriptions, public landing page) or as a **self-hosted** installation (licence keys), for
+schools, offices, and gyms/events (the wording adapts: students/classes, employees/shifts,
+members/events).
+
+| Document | For |
+|---|---|
+| [docs/SAAS_DEPLOYMENT.md](docs/SAAS_DEPLOYMENT.md) | Running the hosted edition: Docker + HTTPS + Stripe, and selling self-hosted licences |
+| [docs/LAUNCH_CHECKLIST.md](docs/LAUNCH_CHECKLIST.md) | Legal, security and quality checks before selling |
+| [docs/PRODUCT_HUNT_LAUNCH.md](docs/PRODUCT_HUNT_LAUNCH.md) | Product Hunt listing, first comment, gallery images, launch plan |
+| [training/antispoof/README.md](training/antispoof/README.md) | Training your own commercially usable anti-spoofing model |
+
 ---
 
 ## 1. Quick start
@@ -198,8 +212,12 @@ the liveness method and the low-attendance limit can also be changed at run time
 
 ## 10. Known limitations
 
-* The anti-spoofing CNN was validated here on 64 genuine photos and 2 real attack samples. It is
-  trained on CelebA-Spoof, and a 3-D silicone mask is outside its scope. Measure it on your own
+* The research anti-spoofing CNN was validated here on 64 genuine photos and 2 real attack samples. It is
+  trained on CelebA-Spoof (non-commercial), and a 3-D silicone mask is outside its scope. For the
+  commercial product, train your own model (`training/antispoof/`).
+* A still picture injected through a virtual camera is rejected (frozen-feed check). Injected
+  *video* cannot be detected by any browser-based check, so keep camera devices under the
+  organization's control (kiosk tablets, staff laptops). Measure it on your own
   cameras with `scripts/evaluate_liveness.py`. For high-stakes use, choose `cnn+motion` mode (CNN
   **and** head turn).
 * Faces need to be about 40 px or larger. For large halls, use 1080p (selector on the live page)
@@ -211,7 +229,7 @@ the liveness method and the low-attendance limit can also be changed at run time
 ## License / models
 
 Code: add the license your department requires. YuNet (MIT) and SFace (Apache-2.0) come from the OpenCV
-Model Zoo. The anti-spoofing model is downloaded from
+Model Zoo. The research anti-spoofing model (only with `--include-research-antispoof`) is downloaded from
 [hairymax/Face-AntiSpoofing](https://github.com/hairymax/Face-AntiSpoofing). It uses the MiniFASNet
 architecture from the Apache-2.0 [Silent-Face-Anti-Spoofing](https://github.com/minivision-ai/Silent-Face-Anti-Spoofing)
 and was trained on CelebA-Spoof, which is for non-commercial research use. That repository has no

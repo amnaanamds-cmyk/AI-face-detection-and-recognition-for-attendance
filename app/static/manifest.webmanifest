@@ -1,5 +1,5 @@
 {
-  "name": "Smart Classroom Attendance",
+  "name": "FaceAttend",
   "short_name": "Attendance",
   "description": "AI face recognition attendance with liveness detection",
   "id": "/",
@@ -9,7 +9,7 @@
   "orientation": "any",
   "background_color": "#f4f6f9",
   "theme_color": "#1f4e79",
-  "categories": ["education", "productivity"],
+  "categories": ["business", "education", "productivity"],
   "icons": [
     {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
     {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},

@@ -14,7 +14,7 @@ Camera ─► Face detection (YuNet) ─► Tracking ─► Alignment ─► Emb
 
 | | |
 |---|---|
-| **AI / CV** | OpenCV DNN: YuNet face detector (multi-scale), SFace face recogniser (ArcFace-style margin loss), MiniFASNet anti-spoofing CNN, NumPy |
+| **AI / CV** | OpenCV DNN: YuNet face detector (multi-scale), SFace face recogniser (hypersphere margin loss, ArcFace family), MiniFASNet anti-spoofing CNN, NumPy |
 | **Backend** | Python 3.10+, FastAPI, SQLAlchemy 2 (SQLite by default, PostgreSQL-ready) |
 | **Frontend** | Server-rendered Jinja2 + Bootstrap 5 + Chart.js (vendored – works offline), browser camera via `getUserMedia` |
 | **Reports** | openpyxl (Excel), ReportLab (PDF), CSV |

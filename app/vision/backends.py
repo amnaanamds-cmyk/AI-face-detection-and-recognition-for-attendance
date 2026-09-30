@@ -4,8 +4,8 @@ OpenCVBackend
     * Detection: **YuNet** (CNN face detector, ~230 KB ONNX, real-time on CPU,
       returns a box + 5 facial landmarks per face, handles many faces per frame).
     * Alignment: similarity transform of the 5 landmarks to a canonical 112x112 face.
-    * Embedding: **SFace** (MobileFaceNet-style network trained with an ArcFace-like
-      margin loss) -> 128-D feature vector compared with cosine similarity.
+    * Embedding: **SFace** (MobileFaceNet-style network trained with the SFace sigmoid-constrained
+      hypersphere loss, an angular-margin loss of the ArcFace family) -> 128-D feature vector compared with cosine similarity.
 
 FakeBackend
     Deterministic stand-in used by the unit tests so the full system can be tested

@@ -13,7 +13,9 @@ FakeBackend
 """
 from __future__ import annotations
 
+import json
 import threading
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
@@ -25,9 +27,43 @@ from app.vision.base import DetectedFace, VisionBackend, l2_normalize
 
 YUNET_FILE = "face_detection_yunet_2023mar.onnx"
 SFACE_FILE = "face_recognition_sface_2021dec.onnx"
-# Optional anti-spoofing CNN (MiniFASNet architecture trained on CelebA-Spoof,
-# classes: live / print / replay). Downloaded by scripts/download_models.py.
+# Optional anti-spoofing CNN. Preferred: your own model trained with training/antispoof/
+# (antispoof.onnx + antispoof.json describing its pre-processing). Fallback: the research
+# model (MiniFASNet trained on CelebA-Spoof, non-commercial), downloaded only with
+# scripts/download_models.py --include-research-antispoof.
+CUSTOM_ANTISPOOF_FILE = "antispoof.onnx"
 ANTISPOOF_FILE = "AntiSpoofing_print-replay_1.5_128.onnx"
+
+
+@dataclass(frozen=True)
+class AntiSpoofConfig:
+    """How to feed a face to an anti-spoofing model (must match how it was trained)."""
+    input_size: int = 128
+    crop_scale: float = 1.5
+    live_index: int = 0
+    rgb: bool = True
+
+    @classmethod
+    def load(cls, sidecar: Path) -> "AntiSpoofConfig":
+        if not sidecar.exists():
+            return cls()
+        data = json.loads(sidecar.read_text())
+        return cls(input_size=int(data.get("input_size", 128)), crop_scale=float(data.get("crop_scale", 1.5)),
+                   live_index=int(data.get("live_index", 0)), rgb=bool(data.get("rgb", True)))
+
+
+def crop_face(image: np.ndarray, bbox, scale: float, size: int) -> np.ndarray:
+    """Square crop of `scale` x the face box, centred on the face, zero padded, resized to size x size.
+
+    Shared by the product and by training/antispoof/prepare.py so training and inference see
+    exactly the same kind of crop.
+    """
+    x, y, w, h = bbox
+    side = max(int(max(w, h) * scale), 1)
+    x0, y0 = int(x + w / 2 - side / 2), int(y + h / 2 - side / 2)
+    padded = cv2.copyMakeBorder(image, side, side, side, side, cv2.BORDER_CONSTANT, value=0)
+    patch = padded[y0 + side:y0 + 2 * side, x0 + side:x0 + 2 * side]
+    return cv2.resize(patch, (size, size), interpolation=cv2.INTER_LINEAR)
 
 
 class ModelsMissingError(RuntimeError):
@@ -49,8 +85,14 @@ class OpenCVBackend:
         self.min_face_size = min_face_size
         self._detector = cv2.FaceDetectorYN.create(str(det_path), "", (320, 320), score_threshold, 0.3, 5000)
         self._recognizer = cv2.FaceRecognizerSF.create(str(rec_path), "")
-        spoof_path = models_dir / ANTISPOOF_FILE
-        self._antispoof = cv2.dnn.readNetFromONNX(str(spoof_path)) if spoof_path.exists() else None
+        self._antispoof, self.antispoof_config, self.antispoof_model = None, AntiSpoofConfig(), None
+        for fname in (CUSTOM_ANTISPOOF_FILE, ANTISPOOF_FILE):
+            spoof_path = models_dir / fname
+            if spoof_path.exists():
+                self._antispoof = cv2.dnn.readNetFromONNX(str(spoof_path))
+                self.antispoof_config = AntiSpoofConfig.load(spoof_path.with_suffix(".json"))
+                self.antispoof_model = fname
+                break
         # cv2.dnn networks are not thread-safe; FastAPI may call us from several threads.
         self._lock = threading.Lock()
 
@@ -106,22 +148,19 @@ class OpenCVBackend:
     def spoof_score(self, image: np.ndarray, face: DetectedFace) -> float | None:
         """Probability (0..1) that the face is a live person and not a print/screen.
 
-        Pre-processing matches the model's training: square crop of 1.5x the face box
-        centred on the face (zero padded), RGB, 128x128, scaled to [0, 1].
+        Pre-processing matches the model's training (see AntiSpoofConfig): square crop of
+        `crop_scale` x the face box centred on the face (zero padded), RGB, resized, scaled to [0, 1].
         """
         if self._antispoof is None:
             return None
-        x, y, w, h = face.bbox
-        side = int(max(w, h) * 1.5)
-        x0, y0 = int(x + w / 2 - side / 2), int(y + h / 2 - side / 2)
-        padded = cv2.copyMakeBorder(image, side, side, side, side, cv2.BORDER_CONSTANT, value=0)
-        patch = padded[y0 + side:y0 + 2 * side, x0 + side:x0 + 2 * side]
-        blob = cv2.dnn.blobFromImage(patch, 1 / 255.0, (128, 128), swapRB=True)
+        cfg = self.antispoof_config
+        patch = crop_face(image, face.bbox, cfg.crop_scale, cfg.input_size)
+        blob = cv2.dnn.blobFromImage(patch, 1 / 255.0, (cfg.input_size, cfg.input_size), swapRB=cfg.rgb)
         with self._lock:
             self._antispoof.setInput(blob)
             logits = self._antispoof.forward()[0].astype(np.float64)
         prob = np.exp(logits - logits.max())
-        return float(prob[0] / prob.sum())
+        return float(prob[cfg.live_index] / prob.sum())
 
     def liveness_landmarks(self, image: np.ndarray, face: DetectedFace, size: int = 256, eye_dist: float = 70.0) -> np.ndarray:
         """Landmarks re-detected on an eye-aligned, scale-normalised crop.

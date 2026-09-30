@@ -12,3 +12,6 @@ exports/
 .DS_Store
 backups/
 setup-system-python.txt
+models/antispoof.json
+runs/
+*.pt

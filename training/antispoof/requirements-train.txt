@@ -1,0 +1,8 @@
+# Training only - the product itself does not need PyTorch.
+# CPU:  pip install -r training/antispoof/requirements-train.txt
+# GPU:  install torch for your CUDA version from https://pytorch.org first, then this file.
+torch>=2.2
+onnx>=1.15
+onnxscript>=0.1
+numpy>=1.24
+opencv-python-headless>=4.9

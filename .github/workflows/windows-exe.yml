@@ -113,6 +113,8 @@ jobs:
             Write-Host "$u -> $($r.StatusCode)"
             if ($r.StatusCode -ne 200) { throw "$u failed" }
           }
+          $r = Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/ask -WebSession $s
+          if ($r.StatusCode -ne 200) { throw "/ask failed" }
           if (-not (Test-Path "HKCU:\Software\Classes\faceattend\shell\open\command")) { throw "faceattend:// link not registered" }
           Write-Host "server still running after the window closed; faceattend:// registered"
           # a second launch reuses the running server

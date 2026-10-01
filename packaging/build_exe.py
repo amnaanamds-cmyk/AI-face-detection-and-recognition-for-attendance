@@ -66,6 +66,7 @@ def main() -> int:
            "--hidden-import", "uvicorn.protocols.http.auto", "--hidden-import", "uvicorn.protocols.http.h11_impl",
            "--hidden-import", "uvicorn.lifespan.on", "--hidden-import", "multipart",
            "--hidden-import", "pystray._win32", "--collect-submodules", "pystray",
+           "--collect-submodules", "anthropic", "--collect-data", "anthropic",   # Ask FaceAttend (imported lazily)
            "--exclude-module", "pytest", "--exclude-module", "tkinter.test"]
     for src, dest in data:
         cmd += ["--add-data", f"{src}{os.pathsep}{dest}"]

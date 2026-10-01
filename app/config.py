@@ -11,6 +11,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+# Writable folder for the database, keys, licence and certificates. The desktop app (.exe)
+# sets DATA_DIR to %LOCALAPPDATA%\FaceAttend because Program Files is read-only.
+DATA_DIR = Path(os.environ.get("DATA_DIR", str(BASE_DIR / "data")))
 
 
 def _load_dotenv(path: Path) -> None:
@@ -25,6 +28,7 @@ def _load_dotenv(path: Path) -> None:
         os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
+_load_dotenv(DATA_DIR / ".env")
 _load_dotenv(BASE_DIR / ".env")
 
 
@@ -49,7 +53,7 @@ def _secret_key() -> str:
     encrypted embeddings survive restarts."""
     if os.environ.get("SECRET_KEY"):
         return os.environ["SECRET_KEY"]
-    key_file = BASE_DIR / "data" / ".secret_key"
+    key_file = DATA_DIR / ".secret_key"
     key_file.parent.mkdir(parents=True, exist_ok=True)
     if not key_file.exists():
         key_file.write_text(secrets.token_urlsafe(48))
@@ -65,7 +69,7 @@ class Settings:
     # product / brand name shown everywhere (set APP_NAME to your own, trademark-checked name)
     app_name: str = field(default_factory=lambda: _env("APP_NAME", "FaceAttend"))
     support_email: str = field(default_factory=lambda: _env("SUPPORT_EMAIL", ""))
-    database_url: str = field(default_factory=lambda: _env("DATABASE_URL", f"sqlite:///{BASE_DIR / 'data' / 'attendance.db'}"))
+    database_url: str = field(default_factory=lambda: _env("DATABASE_URL", f"sqlite:///{DATA_DIR / 'attendance.db'}"))
     secret_key: str = field(default_factory=_secret_key)
     # Optional separate key for encrypting face embeddings (defaults to SECRET_KEY).
     embedding_key: str = field(default_factory=lambda: _env("EMBEDDING_KEY", ""))
@@ -75,7 +79,7 @@ class Settings:
     public_signup: bool = field(default_factory=lambda: _env_bool("PUBLIC_SIGNUP", _env("EDITION", "selfhosted") == "saas"))
     # without a license key a self-hosted installation is limited to this many people
     unlicensed_max_people: int = field(default_factory=lambda: _env_int("UNLICENSED_MAX_PEOPLE", 25))
-    license_file: Path = field(default_factory=lambda: Path(_env("LICENSE_FILE", str(BASE_DIR / "data" / "license.key"))))
+    license_file: Path = field(default_factory=lambda: Path(_env("LICENSE_FILE", str(DATA_DIR / "license.key"))))
     default_org_name: str = field(default_factory=lambda: _env("DEFAULT_ORG_NAME", "My organization"))
 
     # Initial administrator created on first start-up.

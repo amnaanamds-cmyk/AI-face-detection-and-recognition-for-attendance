@@ -1,0 +1,99 @@
+# Builds the Windows desktop app (FaceAttend.exe, portable zip and Setup.exe installer),
+# smoke-tests it on Windows and uploads the files.
+# Download: GitHub > Actions > "Windows app" > latest run > Artifacts.
+# Pushing a tag like v1.0.0 also attaches the files to a GitHub Release.
+name: Windows app
+
+on:
+  push:
+    branches: [main, "claude/**"]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      research_antispoof:
+        description: "Bundle the NON-COMMERCIAL research anti-spoofing model (academic builds only)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller pillow
+
+      - name: Run tests
+        env:
+          VISION_BACKEND: fake
+        run: python -m pytest -q
+
+      - name: Install Inno Setup (if missing)
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+
+      - name: Build
+        env:
+          APP_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '1.0.0' }}
+        shell: pwsh
+        run: |
+          if ("${{ inputs.research_antispoof }}" -eq "true") { python packaging/build_exe.py --include-research-antispoof }
+          else { python packaging/build_exe.py }
+
+      - name: Smoke test the .exe
+        shell: pwsh
+        run: |
+          # a stand-in "app window" that stays open for 25 s, then closes
+          Set-Content -Path waiter.bat -Value "@ping -n 26 127.0.0.1 >nul"
+          $env:FACEATTEND_BROWSER = "$PWD\waiter.bat"
+          $env:DATA_DIR = "$env:RUNNER_TEMP\faceattend-data"
+          $p = Start-Process -FilePath "dist\FaceAttend\FaceAttend.exe" -PassThru
+          $ok = $false
+          for ($i = 0; $i -lt 60 -and -not $ok; $i++) {
+            Start-Sleep -Seconds 1
+            try { $ok = (Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/login).StatusCode -eq 200 } catch {}
+          }
+          if (-not $ok) { Get-Content "$env:DATA_DIR\logs\*.log" -ErrorAction SilentlyContinue; throw "server did not start" }
+          Write-Host "server ready after $i s"
+          $s = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+          Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/login -Method Post -WebSession $s -Body @{username="admin"; password="admin123"} | Out-Null
+          foreach ($u in "/", "/settings", "/reports/monthly?fmt=xlsx", "/reports/monthly?fmt=pdf", "/mobile") {
+            $r = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:8000$u" -WebSession $s
+            Write-Host "$u -> $($r.StatusCode)"
+            if ($r.StatusCode -ne 200) { throw "$u failed" }
+          }
+          if (-not $p.WaitForExit(60000)) { throw "app did not quit after its window closed" }
+          Write-Host "app quit when its window closed"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FaceAttend-Setup
+          path: dist/FaceAttend-Setup.exe
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FaceAttend-portable
+          path: dist/FaceAttend-portable.zip
+          if-no-files-found: error
+
+      - name: Attach to release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/FaceAttend-Setup.exe
+            dist/FaceAttend-portable.zip

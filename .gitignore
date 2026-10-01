@@ -16,3 +16,5 @@ models/antispoof.json
 runs/
 *.pt
 deploy/saas.env
+build/
+dist/

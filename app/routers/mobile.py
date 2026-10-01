@@ -11,14 +11,14 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import joinedload
 
-from app.config import BASE_DIR, settings
+from app.config import DATA_DIR, settings
 from app.database import SessionLocal
 from app.deps import render
 from app.models import User
 
 router = APIRouter()
 STATIC = Path(__file__).resolve().parent.parent / "static"
-CA_CERT = BASE_DIR / "data" / "tls" / "ca.pem"
+CA_CERT = DATA_DIR / "tls" / "ca.pem"
 
 
 def _optional_user(request: Request) -> User | None:

@@ -36,6 +36,22 @@ members/events).
 
 ---
 
+## 0. Desktop app (.exe) - easiest
+
+**FaceAttend-Setup.exe** installs a normal Windows program: double-click the icon, the app opens
+in its own window, and closing the window quits it. There is no console window and no Python to
+install. Phones on the same Wi-Fi can connect while it runs (Mobile app page). Data is stored in
+`%LOCALAPPDATA%\FaceAttend`.
+
+* **Download:** GitHub → *Actions* → *Windows app* → latest run → *Artifacts*
+  (`FaceAttend-Setup` or `FaceAttend-portable`). Tag a version (`git tag v1.0.0 && git push --tags`)
+  to publish it as a GitHub Release you can share with a link.
+* **Build it yourself on Windows:** `pip install -r requirements.txt pyinstaller pillow` then
+  `python packaging/build_exe.py` (add `--include-research-antispoof` for an academic build).
+  Install [Inno Setup 6](https://jrsoftware.org/isinfo.php) to also get the installer.
+* **Keep data from the source version:** copy `data\attendance.db` and `data\.secret_key` into
+  `%LOCALAPPDATA%\FaceAttend` before the first start of the .exe.
+
 ## 1. Quick start
 
 **Windows:** double-click `start.bat`. **Linux / macOS:** `./start.sh`.

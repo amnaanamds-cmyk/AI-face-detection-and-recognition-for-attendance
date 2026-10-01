@@ -1,8 +1,10 @@
 @echo off
-REM One-click start on Windows. Add --lan to serve phones / classroom devices over HTTPS.
+REM One-click start on Windows: opens the FaceAttend desktop app (no console window stays open).
+REM   start.bat --server   console server only (http://127.0.0.1:8000)
+REM   start.bat --lan      console server with HTTPS for phones
 setlocal
 cd /d "%~dp0"
-title Smart Classroom Attendance
+title FaceAttend setup
 
 REM Setup is complete only when a marker exists (a half-finished .venv is rebuilt).
 if exist ".venv\setup-complete.txt" goto run_venv
@@ -65,11 +67,22 @@ echo Setup finished.
 echo.
 
 :run_venv
+if "%~1"=="" (
+  REM desktop app: own window, no console - this window closes by itself
+  start "" ".venv\Scripts\pythonw.exe" desktop.py
+  exit /b 0
+)
 ".venv\Scripts\python.exe" run.py %*
 goto stopped
 
 :run_system
 set /p PY=<"setup-system-python.txt"
+if not "%~1"=="" goto run_system_server
+REM desktop app via pythonw.exe (no console), started detached so this window can close
+%PY% -c "import os,subprocess,sys; w=os.path.join(os.path.dirname(sys.executable),'pythonw.exe'); subprocess.Popen([w if os.path.exists(w) else sys.executable,'desktop.py'],creationflags=8)"
+exit /b 0
+
+:run_system_server
 %PY% run.py %*
 goto stopped
 

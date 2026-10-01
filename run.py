@@ -114,6 +114,7 @@ def ensure_certificate(tls_dir: Path, ip: str) -> tuple[Path, Path]:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--server", action="store_true", help="(used by start.bat) run the console server, not the desktop app")
     ap.add_argument("--lan", action="store_true", help="serve over HTTPS on the local network")
     ap.add_argument("--host", default=None)
     ap.add_argument("--port", type=int, default=None)
@@ -123,7 +124,7 @@ def main() -> int:
 
     import uvicorn
 
-    from app.config import settings
+    from app.config import DATA_DIR, settings
     from app.vision.backends import ANTISPOOF_FILE, SFACE_FILE, YUNET_FILE
 
     missing = [f for f in (YUNET_FILE, SFACE_FILE) if not (settings.models_dir / f).exists()]
@@ -138,7 +139,7 @@ def main() -> int:
     if args.lan or args.cert:
         ip = lan_ip()
         host, port = args.host or "0.0.0.0", args.port or 8443
-        cert, key = (args.cert, args.key) if args.cert else ensure_certificate(ROOT / "data" / "tls", ip)
+        cert, key = (args.cert, args.key) if args.cert else ensure_certificate(DATA_DIR / "tls", ip)
         kwargs = {"ssl_certfile": str(cert), "ssl_keyfile": str(key)}
         os.environ["PUBLIC_URL"] = f"https://{ip}:{port}"
         print(f"\n  On this PC open:        https://localhost:{port}"

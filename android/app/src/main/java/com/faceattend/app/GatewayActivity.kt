@@ -57,7 +57,8 @@ class GatewayActivity : AppCompatActivity() {
         root.addView(TextView(this).apply {
             setPadding(0, pad / 2, 0, pad)
             text = "This phone sends the absence messages for parents as normal SMS from its own SIM card " +
-                "(your normal SMS charges or bundle apply). Keep it charged and connected to the internet."
+                "(your normal SMS charges or bundle apply). Parents can also text STATUS, REPORT or LEAVE to " +
+                "this number and get an automatic answer. Keep it charged and connected to the internet."
         })
         info = TextView(this).apply { setPadding(0, 0, 0, pad) }
         root.addView(info)
@@ -92,7 +93,7 @@ class GatewayActivity : AppCompatActivity() {
     }
 
     private fun askAndEnable() {
-        val needed = mutableListOf(Manifest.permission.SEND_SMS)
+        val needed = mutableListOf(Manifest.permission.SEND_SMS, Manifest.permission.RECEIVE_SMS)
         if (Build.VERSION.SDK_INT >= 33) needed += Manifest.permission.POST_NOTIFICATIONS
         val missing = needed.filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
         if (missing.isEmpty()) enable() else permissions.launch(missing.toTypedArray())

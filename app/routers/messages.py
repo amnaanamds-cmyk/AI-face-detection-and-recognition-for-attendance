@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import admin_only, can_manage_course, flash, render, staff
-from app.models import ClassSession, Organization, OrgSetting, OutboxMessage, User
+from app.models import ClassSession, InboxMessage, Organization, OrgSetting, OutboxMessage, User
 from app.routers.mobile import public_url
 from app.services import app_settings, messaging
 
@@ -38,7 +38,9 @@ def messages_page(request: Request, status: str = "", user: User = Depends(admin
     counts = dict(db.execute(select(OutboxMessage.status, func.count()).where(OutboxMessage.org_id == user.org_id)
                              .group_by(OutboxMessage.status)).all())
     values = app_settings.all_settings(db, user.org_id)
-    return render(request, "admin/messages.html", user, msgs=msgs, counts=counts, status=status, values=values,
+    inbox = db.scalars(select(InboxMessage).where(InboxMessage.org_id == user.org_id)
+                       .order_by(InboxMessage.id.desc()).limit(50)).all()
+    return render(request, "admin/messages.html", user, msgs=msgs, counts=counts, status=status, values=values, inbox=inbox,
                   defs=app_settings.DEFAULTS, choices=app_settings.CHOICES,
                   twilio_sms=messaging.twilio_configured("sms"), twilio_wa=messaging.twilio_configured("whatsapp"),
                   missing=messaging.students_without_contact(db, user.org_id), server_url=_server_url(request),
@@ -53,6 +55,7 @@ async def save_message_settings(request: Request, user: User = Depends(admin_onl
             if key in form:
                 app_settings.set_setting(db, user.org_id, key, str(form[key]).strip())
         app_settings.set_setting(db, user.org_id, "parent_email", form.get("parent_email") == "on")
+        app_settings.set_setting(db, user.org_id, "parent_replies", form.get("parent_replies") == "on")
         flash(request, "Message settings saved")
     except ValueError as exc:
         flash(request, f"Invalid value: {exc}", "danger")
@@ -171,3 +174,29 @@ def gateway_result(mid: int, report: Report, org: Organization = Depends(gateway
     if not messaging.gateway_report(db, org.id, mid, report.ok, report.error):
         raise HTTPException(404, "Unknown message")
     return {"ok": True}
+
+
+class Incoming(BaseModel):
+    sender: str
+    body: str
+
+
+@router.post("/api/gateway/incoming")
+def gateway_incoming(sms: Incoming, org: Organization = Depends(gateway_org), db: Session = Depends(get_db)):
+    """An SMS a parent sent to the school phone; the answer is queued for the same phone to send."""
+    from app.services import sms_commands
+
+    msg = sms_commands.answer(db, org, sms.sender, sms.body)
+    return {"ok": True, "command": msg.command, "reply": msg.reply, "state": msg.state}
+
+
+@router.post("/messages/inbox/{mid}/approve")
+def approve_leave(mid: int, request: Request, user: User = Depends(admin_only), db: Session = Depends(get_db)):
+    from app.services import sms_commands
+
+    msg = db.get(InboxMessage, mid)
+    if msg is None or msg.org_id != user.org_id or msg.state != "leave-pending":
+        raise HTTPException(404, "No pending leave request")
+    n = sms_commands.approve_leave(db, msg)
+    flash(request, f"Leave approved ({n} class record{'s' if n != 1 else ''} set to leave); the parent gets an SMS.")
+    return RedirectResponse("/messages#inbox", status_code=303)

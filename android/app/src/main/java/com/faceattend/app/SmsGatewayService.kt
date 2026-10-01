@@ -98,8 +98,13 @@ class SmsGatewayService : Service() {
                 prefs.lastStatus = "$now - no connection"
                 update("No connection to the server - retrying")
             }
+            // idle until the next check; a parent's SMS (pollNow) wakes the loop early
+            var waited = 0L
             try {
-                Thread.sleep(POLL_MS)
+                while (running && !wake.getAndSet(false) && waited < POLL_MS) {
+                    Thread.sleep(500)
+                    waited += 500
+                }
             } catch (e: InterruptedException) {
                 break
             }
@@ -171,9 +176,15 @@ class SmsGatewayService : Service() {
         private const val NOTIFICATION_ID = 7
         private const val POLL_MS = 20_000L
         private const val ACTION_SENT = "com.faceattend.app.SMS_SENT"
+        /** Set by SmsReceiver: a parent's SMS was answered, send the reply now instead of in 20 s. */
+        private val wake = java.util.concurrent.atomic.AtomicBoolean(false)
 
         fun start(context: Context) {
             ContextCompat.startForegroundService(context, Intent(context, SmsGatewayService::class.java))
+        }
+
+        fun pollNow() {
+            wake.set(true)
         }
 
         fun stop(context: Context) {

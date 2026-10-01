@@ -49,6 +49,11 @@ class Api(private val server: String, private val token: String) {
         }
     }
 
+    /** A parent's SMS to this phone; the server queues the answer for this phone to send. */
+    fun incoming(sender: String, body: String) {
+        request("POST", "/api/gateway/incoming", JSONObject().put("sender", sender).put("body", body))
+    }
+
     fun report(id: Long, ok: Boolean, error: String? = null) {
         val body = JSONObject().put("ok", ok)
         if (error != null) body.put("error", error)

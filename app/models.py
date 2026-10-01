@@ -318,6 +318,22 @@ class OutboxMessage(Base):
     student: Mapped[Student | None] = relationship()
 
 
+class InboxMessage(Base):
+    """An SMS a parent sent to the school phone (forwarded by the FaceAttend Android app)."""
+
+    __tablename__ = "inbox_messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    sender: Mapped[str] = mapped_column(String(40), index=True)
+    body: Mapped[str] = mapped_column(Text)
+    student_ids: Mapped[str] = mapped_column(String(200), default="")   # matched children, comma separated
+    command: Mapped[str] = mapped_column(String(20), default="")        # status | report | leave | help | unknown
+    reply: Mapped[str | None] = mapped_column(Text)
+    state: Mapped[str] = mapped_column(String(20), default="answered")  # answered | leave-pending | leave-approved | ignored
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+
+
 class OrgSetting(Base):
     """Administrator-configurable key/value settings (attendance rules, thresholds), per organization."""
 

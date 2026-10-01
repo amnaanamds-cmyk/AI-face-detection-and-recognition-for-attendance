@@ -29,13 +29,15 @@ DEFAULTS: dict[str, tuple[object, type, str]] = {
     "parent_email": (True, bool, "Also e-mail the guardian when an e-mail address is known"),
     "parent_template": ("Dear {parent}, {student} was {status} in {group} on {date}. - {org}", str,
                         "Message text ({parent} {student} {status} {group} {date} {time} {org})"),
+    "parent_replies": (True, bool, "Answer parents who text STATUS / REPORT / LEAVE to the school phone"),
     "country_code": ("92", str, "Country calling code for local numbers like 03001234567 (e.g. 92 = Pakistan)"),
     "gateway_token": ("", str, "Secret that pairs the FaceAttend Android app (SMS gateway) with this organization"),
 }
 
 
 # shown on their own page (Admin > Parent messages), not on System settings
-MESSAGE_KEYS = ("parent_alerts", "parent_channel", "parent_email", "parent_template", "country_code", "gateway_token")
+MESSAGE_KEYS = ("parent_alerts", "parent_channel", "parent_email", "parent_template", "country_code", "gateway_token",
+                "parent_replies")
 
 CHOICES = {"liveness_mode": ("auto", "cnn", "motion", "cnn+motion"),
            "parent_alerts": ("off", "absent", "absent+late"),

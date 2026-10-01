@@ -26,6 +26,8 @@
       <div class="form-text mb-3">Twilio needs TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_SMS_FROM / TWILIO_WHATSAPP_FROM in the server settings.</div>
       <div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" name="parent_email" id="parent_email" {{ 'checked' if values.parent_email }}>
         <label class="form-check-label" for="parent_email">Also send an e-mail when the guardian's e-mail is known (needs SMTP settings)</label></div>
+      <div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" name="parent_replies" id="parent_replies" {{ 'checked' if values.parent_replies }}>
+        <label class="form-check-label" for="parent_replies">Answer parents who text <strong>STATUS</strong>, <strong>REPORT</strong> or <strong>LEAVE</strong> to the school phone (Android app)</label></div>
       <label class="form-label" for="parent_template">Message</label>
       <textarea class="form-control" id="parent_template" name="parent_template" rows="3" maxlength="600">{{ values.parent_template }}</textarea>
       <div class="form-text mb-3">Placeholders: <code>{parent}</code> <code>{student}</code> <code>{status}</code> <code>{group}</code> <code>{date}</code> <code>{time}</code> <code>{org}</code>. Any language works (e.g. Urdu).</div>
@@ -90,6 +92,22 @@
     {% endfor %}
     </tbody>
   </table></div>
+</div>
+<div class="card mt-3" id="inbox">
+  <div class="card-header">Parents' messages to the school phone</div>
+  <div class="card-body small text-muted border-bottom">Parents can text <code>STATUS</code> (today), <code>REPORT</code> (this month) or
+    <code>LEAVE reason</code> to the school phone (Urdu: <code>HAAZRI</code>, <code>CHUTTI</code>) and get an automatic answer.
+    Only registered guardian numbers get information about their own children.</div>
+  <div class="table-responsive"><table class="table table-sm align-middle mb-0 small">
+    <thead><tr><th>Received</th><th>From</th><th>Message</th><th>Answer</th><th></th></tr></thead><tbody>
+    {% for m in inbox %}
+      <tr><td class="text-nowrap">{{ m.created_at.strftime('%d %b %H:%M') }}</td><td class="text-nowrap">{{ m.sender }}</td>
+        <td>{{ m.body }}</td><td style="max-width: 380px">{{ m.reply or '' }}</td>
+        <td class="text-nowrap">{% if m.state == 'leave-pending' %}
+          <form method="post" action="/messages/inbox/{{ m.id }}/approve"><button class="btn btn-sm btn-success">Approve leave</button></form>
+          {% else %}<span class="badge text-bg-light">{{ m.state }}</span>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="5" class="text-muted p-3">No messages from parents yet.</td></tr>{% endfor %}
+  </tbody></table></div>
 </div>
 <script>
   function done(id) { fetch(`/messages/${id}/done`, {method: 'POST'}); }

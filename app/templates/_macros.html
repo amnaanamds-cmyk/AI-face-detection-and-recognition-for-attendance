@@ -13,3 +13,26 @@
 {%- set s = state.value -%}
 <span class="badge text-bg-{{ {'scheduled': 'secondary', 'active': 'success', 'closed': 'dark'}[s] }}">{{ s|title }}</span>
 {%- endmacro %}
+
+
+{% macro forecast_card(forecasts, title='Attendance forecast', personal=False) -%}
+<div class="card mb-3"><div class="card-header d-flex justify-content-between align-items-center">
+  <span><i class="bi bi-graph-up-arrow"></i> {{ title }}</span><span class="small text-muted">end of term, if the recent pattern continues</span></div>
+  {% for f in forecasts %}
+  <div class="card-body border-bottom py-2">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <strong>{{ f.course.code }} <span class="fw-normal text-muted small">{{ f.course.name }}</span></strong>
+      <span class="badge text-bg-{{ {'high': 'danger', 'medium': 'warning', 'low': 'success'}[f.level] }}">risk {{ f.risk }}/100</span>
+    </div>
+    <div class="small mt-1">Now <strong>{{ '%.0f'|format(f.current) if f.current is not none else '--' }}%</strong>
+      &middot; recent {{ '%.0f'|format(f.recent) if f.recent is not none else '--' }}%
+      &middot; projected <strong class="{{ 'text-danger' if f.projected is not none and f.projected < f.threshold else 'text-success' }}">{{ '%.0f'|format(f.projected) if f.projected is not none else '--' }}%</strong>
+      &middot; {{ f.remaining }} classes left</div>
+    <div class="progress my-1" style="height: 6px" title="{{ f.attended }} of {{ f.counted }} attended">
+      <div class="progress-bar bg-{{ 'danger' if f.level == 'high' else 'warning' if f.level == 'medium' else 'success' }}" style="width: {{ f.current or 0 }}%"></div></div>
+    <div class="small fw-semibold">{{ f.advice }}</div>
+    {% for p in f.patterns %}<div class="small text-muted"><i class="bi bi-dot"></i>{{ p }}</div>{% endfor %}
+  </div>
+  {% else %}<div class="card-body text-muted small">No attendance recorded yet.</div>{% endfor %}
+</div>
+{%- endmacro %}

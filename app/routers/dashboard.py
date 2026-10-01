@@ -13,6 +13,7 @@ from app.config import settings
 from app.deps import NotAuthenticated, course_scope, current_user, render
 from app.models import Attendance, Notification, Role, User
 from app.services import analytics
+from app.services.forecast import at_risk, student_forecasts
 from app.services.billing import PLANS, TRIAL_DAYS
 from app.services.privacy import apply_retention, export_person
 from app.services.attendance import sync_scheduled_sessions
@@ -48,7 +49,7 @@ def home(request: Request, db: Session = Depends(get_db)):
         nq = nq.where(Notification.course_id.in_(scope))
     alerts = db.scalars(nq.order_by(Notification.created_at.desc()).limit(5)).all()
     return render(request, "dashboard.html", user, d=data, alerts=alerts,
-                  trend=analytics.daily_trend(db, 14, scope))
+                  trend=analytics.daily_trend(db, 14, scope), risky=at_risk(db, user.org_id, scope, limit=6))
 
 
 @router.get("/me")
@@ -63,7 +64,8 @@ def my_attendance(request: Request, user: User = Depends(current_user), db: Sess
         select(Notification).where(Notification.student_id == user.student_id, Notification.is_read.is_(False))
         .order_by(Notification.created_at.desc())
     ).all()
-    return render(request, "me.html", user, s=summary, history=history, notes=notes, student=user.student)
+    return render(request, "me.html", user, s=summary, history=history, notes=notes, student=user.student,
+                  forecasts=student_forecasts(db, user.student))
 
 
 @router.get("/me/export")

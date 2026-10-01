@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import status_badge, pct %}
+{% from "_macros.html" import status_badge, pct, forecast_card %}
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-start mb-3 gap-2">
   <div>
@@ -23,6 +23,7 @@
 </div>
 <div class="row g-3">
   <div class="col-lg-5">
+    {{ forecast_card(forecasts) }}
     <div class="card mb-3"><div class="card-header">Biometric data</div><div class="card-body">
       <p class="mb-1">Consent recorded: {% if student.consent_given %}<span class="text-success">Yes</span>{% else %}<span class="text-danger">No</span>{% endif %}</p>
       <p class="mb-2">Face templates (encrypted embeddings): <strong>{{ templates_count }}</strong></p>

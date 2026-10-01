@@ -15,6 +15,7 @@ from app.deps import require_active_subscription, admin_only, course_scope, flas
 from app.models import Attendance, Course, Enrollment, Role, Student, User
 from app.security import hash_password
 from app.services.accounts import person_username
+from app.services.forecast import student_forecasts
 from app.services.billing import plan_limit_error
 from app.models import now
 from app.services import analytics, faces
@@ -121,7 +122,8 @@ def student_detail(sid: int, request: Request, user: User = Depends(staff), db: 
     all_courses = (db.scalars(select(Course).where(Course.org_id == user.org_id).order_by(Course.code)).all()
                    if user.role == Role.admin else [])
     return render(request, "students/detail.html", user, student=st, s=summary, history=history,
-                  templates_count=faces.count_templates(db, sid), all_courses=all_courses)
+                  templates_count=faces.count_templates(db, sid), all_courses=all_courses,
+                  forecasts=student_forecasts(db, st, course_ids=scope))
 
 
 @router.get("/students/{sid}/edit")

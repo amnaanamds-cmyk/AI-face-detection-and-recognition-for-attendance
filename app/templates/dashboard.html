@@ -46,6 +46,14 @@
         <span>{{ status_badge(r.status) }} <small class="text-muted">{{ r.marked_at.strftime('%H:%M') }}</small></span></li>
       {% else %}<li class="list-group-item text-muted">Nothing marked yet today.</li>{% endfor %}
       </ul></div>
+    <div class="card mb-3"><div class="card-header d-flex justify-content-between"><span><i class="bi bi-graph-down-arrow text-danger"></i> At risk this term</span><span class="small text-muted">forecast</span></div>
+      <ul class="list-group list-group-flush">
+      {% for r in risky %}
+        <li class="list-group-item small"><div class="d-flex justify-content-between"><a href="/students/{{ r.student.id }}">{{ r.student.name }}</a>
+          <span><span class="text-muted">{{ r.forecast.course.code }}</span> <span class="badge text-bg-{{ 'danger' if r.forecast.level == 'high' else 'warning' }}">{{ r.forecast.risk }}</span></span></div>
+          <div class="text-muted">{{ r.forecast.advice }}</div></li>
+      {% else %}<li class="list-group-item text-muted small">Nobody is heading below the required attendance.</li>{% endfor %}
+      </ul></div>
     <div class="card"><div class="card-header d-flex justify-content-between"><span>Attendance alerts</span><a href="/notifications" class="small">All</a></div>
       <ul class="list-group list-group-flush">
       {% for n in alerts %}<li class="list-group-item small"><i class="bi bi-exclamation-triangle text-warning"></i> {{ n.message }}</li>

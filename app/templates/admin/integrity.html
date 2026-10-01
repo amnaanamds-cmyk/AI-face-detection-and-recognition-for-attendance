@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="h3 mb-1"><i class="bi bi-shield-lock"></i> Attendance integrity</h1>
+<p class="text-muted">Every attendance change is chained into a tamper-evident ledger (SHA-256 hash chain). Editing a record
+behind FaceAttend's back, or deleting history, is detected here.</p>
+
+{% if r.ok %}
+<div class="alert alert-success d-flex gap-3 align-items-center"><i class="bi bi-shield-check fs-2"></i>
+  <div><strong>All {{ r.records }} attendance records match the ledger.</strong><br>
+  The chain of {{ r.entries }} entries is unbroken.</div></div>
+{% else %}
+<div class="alert alert-danger"><div class="d-flex gap-3 align-items-center mb-2"><i class="bi bi-shield-exclamation fs-2"></i>
+  <strong>{{ r.problems|length }} integrity problem{{ 's' if r.problems|length != 1 }} found</strong></div>
+  <ul class="mb-0 small">{% for p in r.problems[:50] %}<li>{{ p }}</li>{% endfor %}</ul></div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="card card-body mb-3">
+      <div class="fw-semibold">Ledger fingerprint</div>
+      <div class="font-monospace small text-break">#{{ r.head_seq }} {{ r.head_hash }}</div>
+      <div class="small text-muted mt-1">Printed on every PDF report. If someone rebuilt the whole history, the fingerprint on old reports would no longer appear in this chain.</div>
+    </div>
+    <div class="card card-body">
+      <div class="fw-semibold">Verifiable certificates</div>
+      <div class="small text-muted">Download a signed attendance certificate from any {{ t.person|lower }}'s page. Anyone can check it at
+        <a href="/verify">/verify</a> (or by scanning its QR code) without logging in. Signing key: <code>{{ kid }}</code>.</div>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="card"><div class="card-header">Latest ledger entries</div>
+      <div class="table-responsive"><table class="table table-sm mb-0 small">
+        <thead><tr><th>#</th><th>When</th><th>Who</th><th>Action</th><th>Record</th><th>Status</th><th>Hash</th></tr></thead>
+        <tbody>{% for e in recent %}{% set p = e.payload|fromjson %}
+          <tr><td>{{ e.seq or '…' }}</td><td class="text-nowrap">{{ e.at.strftime('%d %b %H:%M') }}</td><td>{{ e.actor }}</td><td>{{ e.action }}</td>
+          <td>{{ e.attendance_id }}</td><td>{{ p.status }}{% if p.method %} <span class="text-muted">({{ p.method }})</span>{% endif %}</td>
+          <td class="font-monospace">{{ (e.hash or '')[:10] }}</td></tr>
+        {% else %}<tr><td colspan="7" class="text-muted p-3">No attendance recorded yet.</td></tr>{% endfor %}</tbody>
+      </table></div></div>
+  </div>
+</div>
+{% endblock %}

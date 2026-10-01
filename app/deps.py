@@ -15,6 +15,7 @@ from app.models import AttendanceStatus, ClassSession, Course, Enrollment, Role,
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 templates.env.globals["app_name"] = settings.app_name
 templates.env.globals["support_email"] = settings.support_email
+templates.env.filters["fromjson"] = __import__("json").loads
 templates.env.globals["statuses"] = [s.value for s in AttendanceStatus]
 templates.env.globals["signup_enabled"] = settings.public_signup
 templates.env.globals["edition"] = settings.edition
@@ -33,6 +34,7 @@ def current_user(request: Request, db: Session = Depends(get_db)) -> User:
     user = db.get(User, uid) if uid else None
     if user is None or not user.is_active or user.org_id is None or not user.org.is_active:
         raise NotAuthenticated()
+    db.info["actor"] = user.username  # recorded in the attendance ledger
     return user
 
 

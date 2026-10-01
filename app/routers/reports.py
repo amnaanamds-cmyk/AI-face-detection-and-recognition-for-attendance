@@ -26,6 +26,11 @@ def _scope(db: Session, user: User, course_id: int) -> list[int] | None:
 
 
 def _respond(request: Request, user: User, rep: reports.Report, fmt: str, filename: str):
+    from app.database import SessionLocal
+    from app.services import ledger
+    with SessionLocal() as db:
+        rep.footer = (f"Tamper-evident ledger fingerprint at export: {ledger.fingerprint(db, user.org_id)} - "
+                      "keep this report: the integrity check (Admin > Integrity) proves the records still match it.")
     if fmt == "html":
         return render(request, "report_view.html", user, report=rep, query=request.url.query)
     if fmt not in reports.EXPORTERS:

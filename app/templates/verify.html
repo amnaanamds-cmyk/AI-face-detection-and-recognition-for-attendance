@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Verify attendance certificate - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="mx-auto" style="max-width: 720px">
+<h1 class="h3 mb-3"><i class="bi bi-patch-check"></i> Verify an attendance certificate</h1>
+{% if result %}
+  {% if result.valid %}
+  <div class="alert alert-success d-flex gap-3 align-items-center"><i class="bi bi-patch-check-fill fs-1"></i>
+    <div><strong class="fs-5">Genuine certificate</strong><br>Issued by {{ result.data.org }} with {{ app_name }}; its content has not been changed.</div></div>
+  {% else %}
+  <div class="alert alert-danger d-flex gap-3 align-items-center"><i class="bi bi-x-octagon-fill fs-1"></i>
+    <div><strong class="fs-5">Not valid</strong><br>{{ result.reason }}</div></div>
+  {% endif %}
+  {% if result.data and result.data.groups is defined %}
+  <div class="card mb-3"><div class="card-body">
+    <div class="fs-5 fw-semibold">{{ result.data.name }} <span class="text-muted fs-6">{{ result.data.id }}</span></div>
+    <div class="text-muted small mb-2">{{ result.data.org }} &middot; {{ result.data.from }} to {{ result.data.to }} &middot; issued {{ result.data.issued|replace('T', ' ') }}</div>
+    <table class="table table-sm mb-0"><thead><tr><th>Group</th><th>Attended</th><th>Classes</th><th>%</th></tr></thead>
+      <tbody>{% for g in result.data.groups %}<tr><td>{{ g.code }} {{ g.name }}</td><td>{{ g.attended }}</td><td>{{ g.classes }}</td><td>{{ g.pct }}%</td></tr>{% endfor %}
+      <tr class="fw-bold"><td>Overall</td><td></td><td></td><td>{{ result.data.overall if result.data.overall is not none else '--' }}%</td></tr></tbody></table>
+    {% if not result.valid %}<div class="small text-danger mt-2">These figures are shown as written on the certificate and must not be trusted.</div>{% endif %}
+  </div></div>
+  {% endif %}
+{% endif %}
+<form method="get" class="card card-body">
+  <label class="form-label" for="c">Certificate code (printed under the QR code)</label>
+  <textarea class="form-control font-monospace small" id="c" name="c" rows="4" required>{{ code }}</textarea>
+  <button class="btn btn-primary mt-2 align-self-start">Verify</button>
+  <div class="small text-muted mt-2">This server signs certificates with key <code>{{ kid }}</code>.</div>
+</form>
+</div>
+{% endblock %}

@@ -21,6 +21,7 @@ class Report:
     subtitle: str
     headers: list[str]
     rows: list[list]
+    footer: str = ""   # e.g. the attendance-ledger fingerprint at the time of export
 
 
 def _minutes(r) -> int | None:
@@ -167,6 +168,8 @@ def to_pdf(report: Report) -> bytes:
         ("FONTSIZE", (0, 0), (-1, -1), 9),
     ]))
     story.append(table)
+    if report.footer:
+        story += [Spacer(1, 10), Paragraph(report.footer, styles["Italic"])]
     doc.build(story)
     return buf.getvalue()
 

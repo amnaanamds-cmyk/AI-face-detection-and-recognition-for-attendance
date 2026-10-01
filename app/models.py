@@ -267,6 +267,30 @@ class Notification(Base):
     course: Mapped[Course | None] = relationship()
 
 
+class LedgerEntry(Base):
+    """Tamper-evident history of every attendance change (see app/services/ledger.py).
+
+    Entries are written in the same transaction as the change and then chained per organization:
+    hash = SHA-256(previous hash + this entry). Editing or deleting any entry afterwards - or
+    changing attendance directly in the database - is detected by the integrity check.
+    Only ids are stored (no names), so erasing a person keeps the ledger pseudonymous.
+    """
+
+    __tablename__ = "attendance_ledger"
+    __table_args__ = (UniqueConstraint("org_id", "seq", name="uq_ledger_org_seq"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org_id: Mapped[int] = mapped_column(Integer, index=True)
+    seq: Mapped[int | None] = mapped_column(Integer)          # position in the chain (set when sealed)
+    at: Mapped[datetime] = mapped_column(DateTime, default=now)
+    actor: Mapped[str] = mapped_column(String(80))            # user name, "kiosk" or "system"
+    action: Mapped[str] = mapped_column(String(20))           # baseline | create | update | delete
+    attendance_id: Mapped[int] = mapped_column(Integer, index=True)
+    payload: Mapped[str] = mapped_column(Text)                # canonical JSON of the record after the change
+    prev_hash: Mapped[str | None] = mapped_column(String(64))
+    hash: Mapped[str | None] = mapped_column(String(64))
+
+
 class OutboxMessage(Base):
     """A message to a parent/guardian (absence alert), with its delivery state.
 

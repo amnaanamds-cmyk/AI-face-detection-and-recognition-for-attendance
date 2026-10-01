@@ -18,7 +18,8 @@ from app import database
 from app.config import settings
 from app.deps import Forbidden, NotAuthenticated, render
 from app.models import Organization, Role, User
-from app.routers import (admin, analytics, auth, billing, courses, dashboard, imports, kiosk, legal, messages, mobile,
+from app.routers import (admin, analytics, auth, billing, courses, dashboard, imports, integrity, kiosk, legal, messages,
+                         mobile,
                          platform, reports, sessions, students)
 from app.security import hash_password
 from app.tenancy import create_org, upgrade_database
@@ -63,6 +64,10 @@ async def lifespan(_app: FastAPI):
     database.init_db()
     upgrade_database(database.engine)
     bootstrap_admin()
+    from app.services import ledger
+    with database.SessionLocal() as db:
+        for org_id in db.scalars(select(Organization.id)).all():
+            ledger.ensure_baseline(db, org_id)  # first start with the ledger: existing records = starting point
     from app.services import tunnel
     if settings.edition != "saas":
         tunnel.resume_if_remembered()  # "share online" was on before the restart
@@ -77,7 +82,7 @@ def create_app() -> FastAPI:
                        https_only=settings.public_base_url.startswith("https://"))
     app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 
-    for r in (mobile, legal, auth, dashboard, imports, students, courses, sessions, kiosk, analytics, reports, admin, messages, platform, billing):
+    for r in (mobile, legal, auth, dashboard, imports, students, courses, sessions, kiosk, analytics, reports, admin, messages, integrity, platform, billing):
         app.include_router(r.router)
 
     @app.exception_handler(NotAuthenticated)

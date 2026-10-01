@@ -35,8 +35,10 @@
   }
 
   async function tick() {
-    if (busy || !cam.running) return;
+    if (busy) return;
+    if (!cam.running) { if (timer) timer = setTimeout(tick, 300); return; }  // camera restarting
     busy = true;
+    const t0 = performance.now();
     try {
       const image = cam.capture(0.85, 1280);
       const res = await fetch('/api/kiosk/frame', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({image})});
@@ -48,13 +50,13 @@
       if (!data.events.length && spoof) $('msg').innerHTML = '<div class="welcome text-danger">Not accepted</div><div class="text-muted">Please look at the camera yourself - photos and screens are not allowed.</div>';
       else if (!data.events.length && unknown) $('msg').innerHTML = '<div class="welcome text-danger">Not registered</div><div class="text-muted">Please contact the front desk.</div>';
     } catch (e) { $('msg').innerHTML = `<div class="text-danger">Connection problem: ${esc(e.message)}</div>`; }
-    finally { busy = false; }
+    finally { busy = false; timer = setTimeout(tick, Math.max(0, 200 - (performance.now() - t0))); }  // up to 5 frames/s
   }
 
   $('btnStart').onclick = async () => {
     try { await cam.start(1280, 720, $('facing').value); } catch (e) { $('msg').textContent = 'Camera error: ' + e.message; return; }
     $('btnStart').disabled = true;
-    timer = setInterval(tick, 500);
+    if (!timer) timer = setTimeout(tick, 0);
   };
   $('facing').onchange = async () => { if (cam.running) await cam.start(1280, 720, $('facing').value); };
   $('btnFull').onclick = () => {
@@ -63,4 +65,5 @@
   };
   // keep a kiosk tablet awake
   if ('wakeLock' in navigator) navigator.wakeLock.request('screen').catch(() => {});
+  $('btnStart').click();  // a kiosk starts by itself (e.g. after the tablet restarts)
 })();

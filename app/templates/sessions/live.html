@@ -9,7 +9,7 @@
       <option value="user">Front camera</option><option value="environment">Back camera</option></select>
     <select id="res" class="form-select form-select-sm" style="width:auto" title="Camera resolution - use 1080p for large classrooms">
       <option value="1280x720" selected>720p</option><option value="1920x1080">1080p (large room)</option><option value="640x480">480p (slow PC)</option></select>
-    <select id="fps" class="form-select form-select-sm" style="width:auto"><option value="1000">1 fps</option><option value="500" selected>2 fps</option><option value="300">3 fps</option></select>
+    <select id="fps" class="form-select form-select-sm" style="width:auto"><option value="200" selected>Fast (5 fps)</option><option value="500">Normal (2 fps)</option><option value="1000">Battery saver (1 fps)</option></select>
     <button class="btn btn-success" id="btnStart"><i class="bi bi-play-fill"></i> Start camera</button>
     <button class="btn btn-outline-secondary" id="btnStop" disabled><i class="bi bi-pause-fill"></i> Pause</button>
     <a class="btn btn-outline-primary" href="/sessions/{{ session.id }}">Results</a>

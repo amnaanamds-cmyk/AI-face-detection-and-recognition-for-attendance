@@ -143,7 +143,7 @@ class LivenessChecker:
     cnn_reject: float = 0.3          # median P(live) below this = spoof
     cnn_min_frames: int = 3
     frozen_diff: float = 0.05        # below this, two consecutive face crops count as identical (a still gives 0.0)
-    frozen_pairs: int = 4            # frame pairs checked before a face can be accepted (~2.5 s at 2 fps)
+    frozen_pairs: int = 2            # changing frame pairs required before a face can be accepted
 
     def update(self, state: LivenessState, t: float, landmarks: np.ndarray, face_crop: np.ndarray,
                roll: float | None = None, cnn_live: float | None = None) -> LivenessState:

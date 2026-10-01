@@ -42,7 +42,8 @@ function startLive(sessionId) {
   }
 
   async function tick() {
-    if (busy || !cam.running) return;
+    if (busy) return;
+    if (!cam.running) { if (timer) timer = setTimeout(tick, 300); return; }  // camera restarting
     busy = true;
     const t0 = performance.now();
     try {
@@ -56,16 +57,23 @@ function startLive(sessionId) {
       $('status').textContent = `${data.faces.length} face(s) in view`;
       $('latency').textContent = `server round-trip ${Math.round(performance.now() - t0)} ms`;
     } catch (e) { $('status').textContent = 'Network error: ' + e.message; }
-    finally { busy = false; }
+    finally { busy = false; schedule(t0); }
   }
 
-  function stop() { clearInterval(timer); timer = null; cam.stop(); $('btnStart').disabled = false; $('btnStop').disabled = true; $('status').textContent = 'Camera stopped.'; }
+  // Send the next frame as soon as the server has answered the previous one (never more often
+  // than the chosen rate): fast servers get ~5 frames/s, slow ones are never flooded.
+  function schedule(t0) {
+    if (!timer) return;
+    timer = setTimeout(tick, Math.max(0, +$('fps').value - (performance.now() - t0)));
+  }
+
+  function stop() { clearTimeout(timer); timer = null; cam.stop(); $('btnStart').disabled = false; $('btnStop').disabled = true; $('status').textContent = 'Camera stopped.'; }
 
   $('btnStart').onclick = async () => {
     const [w, h] = $('res').value.split('x').map(Number);
     try { await cam.start(w, h, $('facing') ? $('facing').value : 'user'); } catch (e) { $('status').textContent = 'Camera error: ' + e.message; return; }
     $('btnStart').disabled = true; $('btnStop').disabled = false;
-    timer = setInterval(tick, +$('fps').value);
+    timer = setTimeout(tick, 0);
   };
   $('btnStop').onclick = stop;
   if ($('facing')) $('facing').onchange = async () => {
@@ -73,6 +81,6 @@ function startLive(sessionId) {
     const [w, h] = $('res').value.split('x').map(Number);
     try { await cam.start(w, h, $('facing').value); } catch (e) { $('status').textContent = 'Camera error: ' + e.message; }
   };
-  $('fps').onchange = () => { if (timer) { clearInterval(timer); timer = setInterval(tick, +$('fps').value); } };
   fetch(`/api/sessions/${sessionId}/summary`).then(r => r.json()).then(s => render({faces: [], summary: s}));
+  $('btnStart').click();  // the teacher opened this page to take attendance: start the camera right away
 }

@@ -149,9 +149,9 @@ def test_frozen_video_rejected_even_when_other_cues_pass():
 def test_cnn_needs_enough_frames_to_rule_out_a_frozen_feed():
     chk = LivenessChecker(min_frames=6, mode="cnn")
     st = LivenessState()
-    for i in range(4):
-        chk.update(st, i * 0.5, project(FACE_3D), sharp(), cnn_live=0.99)
+    chk.update(st, 0.0, project(FACE_3D), sharp(), cnn_live=0.99)
+    chk.update(st, 0.2, project(FACE_3D), sharp(), cnn_live=0.99)
     assert st.decision == CHECKING  # CNN alone is not trusted before the feed has been seen to move
-    for i in range(4, 5):
+    for i in range(2, 3):
         chk.update(st, i * 0.5, project(FACE_3D), sharp(), cnn_live=0.99)
     assert st.decision == LIVE

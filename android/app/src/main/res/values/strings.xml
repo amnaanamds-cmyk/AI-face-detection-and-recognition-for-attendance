@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">FaceAttend</string>
+    <string name="setup_title">Connect to server</string>
+    <string name="gateway_title">SMS sender for parent messages</string>
+    <string name="setup_intro">Scan the QR code shown in FaceAttend on the computer (Connect phones / share online), or type the address.</string>
+    <string name="scan_qr">Scan QR code</string>
+    <string name="server_hint">https://… address of the server</string>
+    <string name="connect">Connect</string>
+    <string name="menu_reload">Reload</string>
+    <string name="menu_server">Change server</string>
+    <string name="menu_gateway">SMS sender (parent messages)</string>
+    <string name="offline_title">Cannot reach the server</string>
+    <string name="offline_text">Check that FaceAttend is running on the computer and that this phone has internet (online link) or is on the same Wi-Fi.</string>
+    <string name="retry">Try again</string>
+    <string name="channel_name">Parent messages</string>
+</resources>

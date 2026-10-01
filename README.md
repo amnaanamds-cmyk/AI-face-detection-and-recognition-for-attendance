@@ -29,6 +29,7 @@ members/events).
 
 | Document | For |
 |---|---|
+| [docs/MOBILE_AND_MESSAGES.md](docs/MOBILE_AND_MESSAGES.md) | Phones (share online / same Wi-Fi), the Android app (Android Studio), SMS / WhatsApp messages to parents |
 | [docs/SAAS_DEPLOYMENT.md](docs/SAAS_DEPLOYMENT.md) | Running the hosted edition: Docker + HTTPS + Stripe, and selling self-hosted licences |
 | [docs/LAUNCH_CHECKLIST.md](docs/LAUNCH_CHECKLIST.md) | Legal, security and quality checks before selling |
 | [docs/PRODUCT_HUNT_LAUNCH.md](docs/PRODUCT_HUNT_LAUNCH.md) | Product Hunt listing, first comment, gallery images, launch plan |
@@ -45,8 +46,8 @@ shortcut, browser tab or phone keeps working. Quit from the tray icon. There is 
 and no Python to install. Phones on the same Wi-Fi can connect while it runs (Mobile app page). Data is stored in
 `%LOCALAPPDATA%\FaceAttend`.
 
-* **Download:** GitHub → *Actions* → *Windows app* → latest run → *Artifacts*
-  (`FaceAttend-Setup` or `FaceAttend-portable`). Tag a version (`git tag v1.0.0 && git push --tags`)
+* **Download:** GitHub → *Actions* → *Build apps* → latest run → *Artifacts*
+  (`FaceAttend-Setup`, `FaceAttend-portable`, and `FaceAttend-android` for the phone app). Tag a version (`git tag v1.0.0 && git push --tags`)
   to publish it as a GitHub Release you can share with a link.
 * **Build it yourself on Windows:** `pip install -r requirements.txt pyinstaller pillow` then
   `python packaging/build_exe.py` (add `--include-research-antispoof` for an academic build).

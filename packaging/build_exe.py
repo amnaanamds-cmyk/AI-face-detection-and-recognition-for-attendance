@@ -53,6 +53,9 @@ def main() -> int:
             shutil.copy2(ROOT / "models" / custom, models / custom)
 
     data = [(ROOT / "app/templates", "app/templates"), (ROOT / "app/static", "app/static"), (models, "models")]
+    apk = ROOT / "dist" / "FaceAttend.apk"   # the Android app, served to phones at /download/android
+    if apk.exists():
+        data.append((apk, "downloads"))
     if (ROOT / "app/license_public_key.pem").exists():
         data.append((ROOT / "app/license_public_key.pem", "app"))
     cmd = [sys.executable, "-m", "PyInstaller", "desktop.py", "--name", NAME, "--noconfirm", "--clean",

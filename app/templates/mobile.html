@@ -68,15 +68,28 @@
 </div>
 {% endif %}
 
+{% if apk %}
+<div class="card mb-3 border-primary"><div class="card-body">
+  <div class="fw-semibold"><i class="bi bi-android2 text-success"></i> FaceAttend Android app (recommended for Android)</div>
+  <ol class="small mb-2 mt-2">
+    <li>On the phone, open the address above and tap <strong>Download Android app</strong> (or scan the QR code and come back to this page).</li>
+    <li>Open the downloaded <code>FaceAttend.apk</code>. If Android asks, allow installing apps from this source.</li>
+    <li>Open FaceAttend, tap <strong>Scan QR code</strong> and scan the QR code above.</li>
+  </ol>
+  <a class="btn btn-primary btn-sm" href="/download/android"><i class="bi bi-download"></i> Download Android app (.apk)</a>
+  <div class="small text-muted mt-2">The app can also send the parent absence SMS from the phone's SIM card (Admin &gt; Parent messages).</div>
+</div></div>
+{% endif %}
+
 <div class="row g-3">
-  <div class="col-md-6"><div class="card h-100"><div class="card-header"><i class="bi bi-android2 text-success"></i> Android (Chrome)</div><div class="card-body small">
+  <div class="col-md-6"><div class="card h-100"><div class="card-header"><i class="bi bi-android2 text-success"></i> Android (Chrome, without the app)</div><div class="card-body small">
     <ol class="ps-3 mb-0">
       {% if has_ca %}<li class="mb-2"><strong>Trust the server (once per phone):</strong> <a href="/mobile/attendance-ca.crt">download the certificate</a>, then open
         <em>Settings → Security → More security settings → Encryption &amp; credentials → Install a certificate → CA certificate</em>
         and choose <code>attendance-ca.crt</code>. On some phones the path is <em>Settings → Security → Install from storage</em>.</li>{% endif %}
       <li class="mb-2">Open the address above in <strong>Chrome</strong> and log in.</li>
       <li class="mb-2">Tap <strong>Install app</strong> (top bar) or Chrome menu <strong>⋮ → Install app / Add to Home screen</strong>.</li>
-      <li>Open <strong>Attendance</strong> from the home screen. It runs full-screen like a normal app.</li>
+      <li>Open <strong>{{ app_name }}</strong> from the home screen. It runs full-screen like a normal app.</li>
     </ol></div></div></div>
   <div class="col-md-6"><div class="card h-100"><div class="card-header"><i class="bi bi-apple"></i> iPhone / iPad (Safari)</div><div class="card-body small">
     <ol class="ps-3 mb-0">
@@ -85,14 +98,14 @@
         and after that <em>Settings → General → About → Certificate Trust Settings</em> and switch it <strong>on</strong>.</li>{% endif %}
       <li class="mb-2">Open the address above in <strong>Safari</strong> and log in.</li>
       <li class="mb-2">Tap <strong>Share <i class="bi bi-box-arrow-up"></i> → Add to Home Screen</strong>.</li>
-      <li>Open <strong>Attendance</strong> from the home screen.</li>
+      <li>Open <strong>{{ app_name }}</strong> from the home screen.</li>
     </ol></div></div></div>
 </div>
 
 <div class="card mt-3"><div class="card-header">Using the app</div><div class="card-body small">
   <ul class="mb-0 ps-3">
     <li><strong>{{ t.staff }}:</strong> Attendance → Create {{ t.session|lower }} → <em>Create &amp; start</em> → choose <em>Back camera</em> → point the phone at the class.
-      On a stand or tripod, 2 frames per second, 720p.</li>
+      On a stand or tripod at 720p.</li>
     <li><strong>Face registration on a phone:</strong> {{ t.people }} → {{ t.person|lower }} → Register face → <em>Flip</em> to choose the camera.</li>
     <li><strong>{{ t.person }}:</strong> log in with the {{ t.person_id }} to see attendance percentage, history and warnings.</li>
     <li>If you skip the certificate step, the browser shows a security warning. Tap <em>Advanced → Proceed</em>; the camera still works,

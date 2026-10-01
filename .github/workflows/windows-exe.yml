@@ -1,8 +1,8 @@
-# Builds the Windows desktop app (FaceAttend.exe, portable zip and Setup.exe installer),
-# smoke-tests it on Windows and uploads the files.
-# Download: GitHub > Actions > "Windows app" > latest run > Artifacts.
+# Builds the Android app (FaceAttend.apk) and the Windows desktop app (Setup.exe + portable zip,
+# with the APK inside so phones can download it from the PC), tests both and uploads the files.
+# Download: GitHub > Actions > "Build apps" > latest run > Artifacts.
 # Pushing a tag like v1.0.0 also attaches the files to a GitHub Release.
-name: Windows app
+name: Build apps
 
 on:
   push:
@@ -19,7 +19,41 @@ permissions:
   contents: write
 
 jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+          mkdir -p ../dist && cp app/build/outputs/apk/release/app-release.apk ../dist/FaceAttend.apk
+      - name: Lint
+        continue-on-error: true
+        run: ./gradlew lintDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FaceAttend-android
+          path: dist/FaceAttend.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-lint-report
+          path: android/app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore
+
   build:
+    needs: android
     runs-on: windows-latest
     timeout-minutes: 40
     steps:
@@ -45,6 +79,11 @@ jobs:
         run: |
           if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: FaceAttend-android
+          path: dist
+
       - name: Build
         env:
           APP_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '1.0.0' }}
@@ -69,7 +108,7 @@ jobs:
           # the window has closed, but the background server must keep running
           $s = New-Object Microsoft.PowerShell.Commands.WebRequestSession
           Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/login -Method Post -WebSession $s -Body @{username="admin"; password="admin123"} | Out-Null
-          foreach ($u in "/", "/settings", "/reports/monthly?fmt=xlsx", "/reports/monthly?fmt=pdf", "/mobile") {
+          foreach ($u in "/", "/settings", "/messages", "/reports/monthly?fmt=xlsx", "/reports/monthly?fmt=pdf", "/mobile", "/download/android") {
             $r = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:8000$u" -WebSession $s
             Write-Host "$u -> $($r.StatusCode)"
             if ($r.StatusCode -ne 200) { throw "$u failed" }
@@ -128,3 +167,4 @@ jobs:
           files: |
             dist/FaceAttend-Setup.exe
             dist/FaceAttend-portable.zip
+            dist/FaceAttend.apk

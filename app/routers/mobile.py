@@ -11,7 +11,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 from sqlalchemy.orm import joinedload
 
-from app.config import DATA_DIR, settings
+from app.config import BASE_DIR, DATA_DIR, settings
 from app.database import SessionLocal
 from app.deps import render
 from app.models import User
@@ -72,6 +72,23 @@ def offline(request: Request):
     return render(request, "offline.html", None)
 
 
+def android_apk() -> Path | None:
+    """The Android app, if this installation ships it (desktop .exe) or the operator put it in data/downloads."""
+    for folder in (DATA_DIR / "downloads", BASE_DIR / "downloads"):
+        apk = folder / "FaceAttend.apk"
+        if apk.exists():
+            return apk
+    return None
+
+
+@router.get("/download/android", include_in_schema=False)
+def download_android():
+    apk = android_apk()
+    if apk is None:
+        return Response("The Android app is not included in this installation.", status_code=404)
+    return FileResponse(apk, media_type="application/vnd.android.package-archive", filename="FaceAttend.apk")
+
+
 @router.get("/mobile")
 def mobile_setup(request: Request):
     from app.services.tunnel import tunnel
@@ -79,7 +96,7 @@ def mobile_setup(request: Request):
     user = _optional_user(request)
     return render(request, "mobile.html", user, url=lan_url(request), has_ca=CA_CERT.exists(),
                   on_https=request.url.scheme == "https", share=tunnel.status(), can_share=_can_share(user),
-                  saas=settings.edition == "saas")
+                  saas=settings.edition == "saas", apk=android_apk() is not None)
 
 
 @router.get("/mobile/qr.svg", include_in_schema=False)

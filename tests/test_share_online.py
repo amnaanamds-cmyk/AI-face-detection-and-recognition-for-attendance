@@ -1,4 +1,5 @@
 """Share online: public link through a (stand-in) cloudflared tunnel."""
+import os
 import sys
 import textwrap
 import time
@@ -11,7 +12,7 @@ from tests.conftest import login
 
 @pytest.fixture()
 def fake_cloudflared(tmp_path, monkeypatch):
-    script = tmp_path / "cloudflared"
+    script = tmp_path / "cloudflared.py"
     script.write_text(textwrap.dedent(f"""\
         #!{sys.executable}
         import sys, time
@@ -21,6 +22,10 @@ def fake_cloudflared(tmp_path, monkeypatch):
         time.sleep(60)
     """))
     script.chmod(0o755)
+    if os.name == "nt":  # Windows cannot run a #! script directly
+        launcher = tmp_path / "cloudflared.bat"
+        launcher.write_text(f'@"{sys.executable}" "{script}" %*\n')
+        script = launcher
     monkeypatch.setenv("CLOUDFLARED", str(script))
     monkeypatch.setattr(tunnel_mod, "REMEMBER", tmp_path / "share-online.on")
     yield tmp_path
@@ -59,3 +64,14 @@ def test_teacher_cannot_share(client, fake_cloudflared):
     login(client, "t1", "teacherpass1")
     assert client.post("/share/start").status_code == 403
     assert "Share online" not in client.get("/mobile").text
+
+
+def test_android_app_download(client, tmp_path, monkeypatch):
+    from app.routers import mobile
+    assert client.get("/download/android").status_code == 404
+    monkeypatch.setattr(mobile, "DATA_DIR", tmp_path)
+    (tmp_path / "downloads").mkdir()
+    (tmp_path / "downloads" / "FaceAttend.apk").write_bytes(b"PK fake apk")
+    r = client.get("/download/android")
+    assert r.status_code == 200 and r.headers["content-type"] == "application/vnd.android.package-archive"
+    assert "Download Android app" in client.get("/mobile").text

@@ -3,7 +3,7 @@
 <h1 class="h3 mb-1">Parent messages</h1>
 <p class="text-muted">When a {{ t.session|lower }} closes, the parent or guardian of every absent {{ t.person|lower }} gets a message.</p>
 
-{% if missing %}<div class="alert alert-warning py-2">{{ missing }} active {{ t.people|lower }} have no guardian mobile or e-mail yet:
+{% if missing %}<div class="alert alert-warning py-2">{{ missing }} active {{ t.person|lower if missing == 1 else t.people|lower }} {{ 'has' if missing == 1 else 'have' }} no guardian mobile or e-mail yet:
   add them on each {{ t.person|lower }}'s Edit page, or import a spreadsheet with a <code>parent phone</code> column.</div>{% endif %}
 
 <div class="row g-3">
@@ -40,7 +40,7 @@
       <div class="fw-semibold mb-2"><i class="bi bi-phone"></i> Send SMS from a school phone (free)</div>
       <ol class="small mb-2">
         <li>Install the <strong>FaceAttend Android app</strong> on a phone with a SIM card and SMS credit.</li>
-        <li>In the app, tap <em>Pair SMS sender</em> and scan this code.</li>
+        <li>In the app, open <em>⋮ → SMS sender (parent messages) → Scan pairing code</em>, scan this code, then tap <em>Start sending messages</em>.</li>
         <li>Keep the phone on and connected to the internet or the school Wi-Fi: it sends the messages as normal SMS.</li>
       </ol>
       {% if values.gateway_token %}

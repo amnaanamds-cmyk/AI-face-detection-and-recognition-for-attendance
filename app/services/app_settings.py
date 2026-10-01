@@ -12,6 +12,8 @@ DEFAULTS: dict[str, tuple[object, type, str]] = {
     "present_window_minutes": (10, int, "Minutes after start counted as Present"),
     "late_window_minutes": (20, int, "Minutes after start counted as Late (after this: Absent)"),
     "low_attendance_threshold": (75.0, float, "Low-attendance warning threshold (%)"),
+    "ai_assistant": (False, bool, "Ask FaceAttend: let staff ask questions in plain language (needs ANTHROPIC_API_KEY; "
+                     "questions and the attendance figures needed to answer them are sent to Anthropic)"),
     "term_weeks": (16, int, "Length of the term / semester in weeks (attendance forecast)"),
     "match_threshold": (env.match_threshold, float, "Face match threshold (cosine similarity)"),
     "match_margin": (env.match_margin, float, "Required margin over the 2nd-best student"),

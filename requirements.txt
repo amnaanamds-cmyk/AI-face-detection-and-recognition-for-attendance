@@ -16,6 +16,9 @@ segno>=1.5
 # Security (encryption of stored face embeddings)
 cryptography>=41
 
+# Optional: 'Ask FaceAttend' natural-language questions (Claude API)
+anthropic>=1.0
+
 # Reports
 openpyxl>=3.1
 reportlab>=4.0

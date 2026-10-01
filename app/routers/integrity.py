@@ -5,6 +5,7 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -83,3 +84,28 @@ def my_certificate(request: Request, user: User = Depends(current_user), db: Ses
 def verify_page(request: Request, c: str = ""):
     result = certificates.verify(c) if c else None
     return render(request, "verify.html", None, result=result, code=c, kid=certificates.key_id())
+
+
+# ------------------------------------------------------------------ Ask FaceAttend (natural-language questions)
+@router.get("/ask")
+def ask_page(request: Request, user: User = Depends(staff), db: Session = Depends(get_db)):
+    from app.services import app_settings
+    enabled = bool(app_settings.get_setting(db, user.org_id, "ai_assistant"))
+    return render(request, "ask.html", user, enabled=enabled)
+
+
+class Question(BaseModel):
+    question: str
+
+
+@router.post("/api/ask")
+def ask_api(q: Question, user: User = Depends(staff), db: Session = Depends(get_db)):
+    from app.services import app_settings, assistant
+    if not app_settings.get_setting(db, user.org_id, "ai_assistant"):
+        raise HTTPException(403, "Ask FaceAttend is switched off (Admin > System settings)")
+    if not q.question.strip():
+        raise HTTPException(400, "Please type a question")
+    try:
+        return assistant.ask(db, user, course_scope(db, user), q.question)
+    except assistant.AssistantUnavailable as exc:
+        raise HTTPException(503, str(exc)) from exc

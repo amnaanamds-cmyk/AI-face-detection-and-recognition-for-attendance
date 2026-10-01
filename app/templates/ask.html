@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="mx-auto" style="max-width: 860px">
+<h1 class="h3 mb-1"><i class="bi bi-chat-square-text"></i> Ask {{ app_name }}</h1>
+<p class="text-muted">Ask about attendance in your own words, in English or Urdu. The answer is built only from your
+{{ t.groups|lower }}' real records - the assistant can read, never change anything.</p>
+{% if not enabled %}
+<div class="alert alert-info">Ask {{ app_name }} is switched off. An administrator can switch it on in <a href="/settings">System settings</a>
+(the server needs an Anthropic API key in <code>ANTHROPIC_API_KEY</code>). Questions and the attendance figures needed to answer them are sent to Anthropic's API.</div>
+{% else %}
+<form id="askForm" class="card card-body mb-3">
+  <div class="input-group">
+    <input class="form-control form-control-lg" id="q" placeholder="e.g. Who missed most classes in September?" autocomplete="off" required maxlength="1000">
+    <button class="btn btn-primary" id="askBtn"><i class="bi bi-send"></i> Ask</button>
+  </div>
+  <div class="d-flex flex-wrap gap-2 mt-2 small">
+    {% for ex in ['Who was absent today?', 'Which ' ~ t.people|lower ~ ' will fall below the required attendance this term, and what must they do?',
+                  'Which weekday has the most absences?', 'Compare attendance of all ' ~ t.groups|lower ~ ' this month',
+                  'اس ہفتے سب سے زیادہ غیر حاضر کون رہا؟'] %}
+    <button type="button" class="btn btn-sm btn-outline-secondary ex">{{ ex }}</button>{% endfor %}
+  </div>
+</form>
+<div id="log"></div>
+{% endif %}
+</div>
+{% if enabled %}
+<script>
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+  document.querySelectorAll('.ex').forEach(b => b.onclick = () => { $('q').value = b.textContent; $('askForm').requestSubmit(); });
+  $('askForm').onsubmit = async e => {
+    e.preventDefault();
+    const q = $('q').value.trim(); if (!q) return;
+    const card = document.createElement('div'); card.className = 'card mb-3';
+    card.innerHTML = `<div class="card-header fw-semibold">${esc(q)}</div><div class="card-body"><span class="spinner-border spinner-border-sm"></span> Looking at the records…</div>`;
+    $('log').prepend(card); $('askBtn').disabled = true; $('q').value = '';
+    try {
+      const r = await fetch('/api/ask', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({question: q})});
+      const d = await r.json();
+      const body = card.querySelector('.card-body');
+      if (!r.ok) { body.innerHTML = `<span class="text-danger">${esc(d.detail || 'Error')}</span>`; return; }
+      body.innerHTML = `<div style="white-space: pre-wrap" dir="auto">${esc(d.answer)}</div>` +
+        (d.tools.length ? `<div class="small text-muted mt-2">Checked: ${esc([...new Set(d.tools)].join(', ').replaceAll('_', ' '))}</div>` : '');
+    } catch (err) { card.querySelector('.card-body').innerHTML = `<span class="text-danger">${esc(err.message)}</span>`; }
+    finally { $('askBtn').disabled = false; }
+  };
+</script>
+{% endif %}
+{% endblock %}

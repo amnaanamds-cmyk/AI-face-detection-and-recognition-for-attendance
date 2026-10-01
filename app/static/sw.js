@@ -1,6 +1,6 @@
 // Service worker: makes the web app installable and keeps the app shell available offline.
 // Attendance data and camera frames always go to the server (never cached).
-const VERSION = 'attendance-v1';
+const VERSION = 'attendance-v2';
 const SHELL = [
   '/offline',
   '/static/css/app.css',

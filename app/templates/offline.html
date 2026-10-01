@@ -1,9 +1,22 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="text-center mt-5">
+<div class="text-center mt-5 mx-auto" style="max-width: 560px">
   <i class="bi bi-wifi-off display-3 text-secondary"></i>
   <h1 class="h4 mt-3">Server not reachable</h1>
-  <p class="text-muted">Make sure this phone is on the same Wi-Fi as the attendance server and that the server is running.</p>
+  <p class="text-muted">The app is only a window onto the attendance server, so the server has to be running first.</p>
+  <ol class="text-start small text-muted">
+    <li>On the <strong>server PC</strong>, start the server: double-click <code>start.bat</code>
+      (or <code>start-mobile.bat</code> if you use phones). Keep its black window open.</li>
+    <li>Wait until the window says the server is running (about 10 seconds).</li>
+    <li>On a phone or tablet, connect to the <strong>same Wi-Fi</strong> as the server PC.</li>
+  </ol>
+  <p class="small text-muted" id="retryNote">This page reconnects automatically…</p>
   <button class="btn btn-primary" onclick="location.reload()">Try again</button>
 </div>
+<script>
+  // reconnect by itself as soon as the server answers again
+  setInterval(() => {
+    fetch('/login', {method: 'HEAD', cache: 'no-store'}).then(r => { if (r.ok || r.status < 500) location.reload(); }).catch(() => {});
+  }, 5000);
+</script>
 {% endblock %}

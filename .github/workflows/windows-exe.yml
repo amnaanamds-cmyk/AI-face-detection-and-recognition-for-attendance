@@ -33,7 +33,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt pyinstaller pillow
+          pip install -r requirements.txt -r packaging/requirements-desktop.txt
 
       - name: Run tests
         env:
@@ -56,18 +56,15 @@ jobs:
       - name: Smoke test the .exe
         shell: pwsh
         run: |
-          # a stand-in "app window" that stays open for 25 s, then closes
-          Set-Content -Path waiter.bat -Value "@ping -n 26 127.0.0.1 >nul"
-          $env:FACEATTEND_BROWSER = "$PWD\waiter.bat"
+          # stand-in for the app window: opens and closes immediately
+          Set-Content -Path window.bat -Value "@exit 0"
+          $env:FACEATTEND_BROWSER = "$PWD\window.bat"
           $env:DATA_DIR = "$env:RUNNER_TEMP\faceattend-data"
-          $p = Start-Process -FilePath "dist\FaceAttend\FaceAttend.exe" -PassThru
-          $ok = $false
-          for ($i = 0; $i -lt 60 -and -not $ok; $i++) {
-            Start-Sleep -Seconds 1
-            try { $ok = (Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/login).StatusCode -eq 200 } catch {}
-          }
-          if (-not $ok) { Get-Content "$env:DATA_DIR\logs\*.log" -ErrorAction SilentlyContinue; throw "server did not start" }
-          Write-Host "server ready after $i s"
+          $sw = [Diagnostics.Stopwatch]::StartNew()
+          $launcher = Start-Process -FilePath "dist\FaceAttend\FaceAttend.exe" -PassThru -Wait
+          Write-Host "launcher finished after $($sw.Elapsed.TotalSeconds) s (exit $($launcher.ExitCode))"
+          if ($launcher.ExitCode -ne 0) { Get-Content "$env:DATA_DIR\logs\*.log" -ErrorAction SilentlyContinue; throw "launcher failed" }
+          # the window has closed, but the background server must keep running
           $s = New-Object Microsoft.PowerShell.Commands.WebRequestSession
           Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/login -Method Post -WebSession $s -Body @{username="admin"; password="admin123"} | Out-Null
           foreach ($u in "/", "/settings", "/reports/monthly?fmt=xlsx", "/reports/monthly?fmt=pdf", "/mobile") {
@@ -75,8 +72,18 @@ jobs:
             Write-Host "$u -> $($r.StatusCode)"
             if ($r.StatusCode -ne 200) { throw "$u failed" }
           }
-          if (-not $p.WaitForExit(60000)) { throw "app did not quit after its window closed" }
-          Write-Host "app quit when its window closed"
+          if (-not (Test-Path "HKCU:\Software\Classes\faceattend\shell\open\command")) { throw "faceattend:// link not registered" }
+          Write-Host "server still running after the window closed; faceattend:// registered"
+          # a second launch reuses the running server
+          $second = Start-Process -FilePath "dist\FaceAttend\FaceAttend.exe" -PassThru -Wait
+          if ($second.ExitCode -ne 0) { throw "second launch failed" }
+          # quit
+          Start-Process -FilePath "dist\FaceAttend\FaceAttend.exe" -ArgumentList "--quit" -Wait
+          Start-Sleep -Seconds 2
+          $stopped = $false
+          try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/login -TimeoutSec 3 | Out-Null } catch { $stopped = $true }
+          if (-not $stopped) { throw "--quit did not stop the server" }
+          Write-Host "--quit stopped the server"
 
       - uses: actions/upload-artifact@v4
         with:

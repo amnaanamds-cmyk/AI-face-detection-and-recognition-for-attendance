@@ -1,0 +1,4 @@
+# Desktop app (.exe) build only
+pyinstaller>=6.6
+pillow>=10
+pystray>=0.19

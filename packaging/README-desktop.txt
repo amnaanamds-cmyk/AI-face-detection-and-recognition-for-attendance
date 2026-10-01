@@ -1,9 +1,12 @@
 FaceAttend - face recognition attendance
 =========================================
 
-Start:   double-click FaceAttend.exe (or the desktop shortcut after installing).
-         The app opens in its own window. Nothing else needs to stay open.
-Quit:    close the app window.
+Start:   double-click FaceAttend (desktop shortcut or Start menu).
+         The app opens in its own window. The attendance server runs in the
+         background (icon next to the clock), so closing the window does not
+         stop it: phones keep working and the app reopens instantly.
+Quit:    right-click the tray icon > Quit FaceAttend.
+Start with Windows: tray icon > Start with Windows (installer option).
 Login:   admin / admin123  - change the password after the first login.
 
 Camera:  allow camera access the first time (it is remembered).

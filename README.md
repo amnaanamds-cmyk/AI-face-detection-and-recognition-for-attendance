@@ -38,9 +38,11 @@ members/events).
 
 ## 0. Desktop app (.exe) - easiest
 
-**FaceAttend-Setup.exe** installs a normal Windows program: double-click the icon, the app opens
-in its own window, and closing the window quits it. There is no console window and no Python to
-install. Phones on the same Wi-Fi can connect while it runs (Mobile app page). Data is stored in
+**FaceAttend-Setup.exe** installs a normal Windows program: double-click the icon and the app
+opens in its own window. The attendance server runs in the background (tray icon next to the
+clock, optionally started with Windows), so closing the window does not break anything and every
+shortcut, browser tab or phone keeps working. Quit from the tray icon. There is no console window
+and no Python to install. Phones on the same Wi-Fi can connect while it runs (Mobile app page). Data is stored in
 `%LOCALAPPDATA%\FaceAttend`.
 
 * **Download:** GitHub → *Actions* → *Windows app* → latest run → *Artifacts*

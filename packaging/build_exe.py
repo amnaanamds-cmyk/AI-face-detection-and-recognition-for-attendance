@@ -62,6 +62,7 @@ def main() -> int:
            "--hidden-import", "uvicorn.logging", "--hidden-import", "uvicorn.loops.auto",
            "--hidden-import", "uvicorn.protocols.http.auto", "--hidden-import", "uvicorn.protocols.http.h11_impl",
            "--hidden-import", "uvicorn.lifespan.on", "--hidden-import", "multipart",
+           "--hidden-import", "pystray._win32", "--collect-submodules", "pystray",
            "--exclude-module", "pytest", "--exclude-module", "tkinter.test"]
     for src, dest in data:
         cmd += ["--add-data", f"{src}{os.pathsep}{dest}"]

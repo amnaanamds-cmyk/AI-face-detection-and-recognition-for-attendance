@@ -9,6 +9,8 @@
     {% if session.state.value != 'closed' %}
     <a class="btn btn-success" href="/sessions/{{ session.id }}/live"><i class="bi bi-camera-video"></i> Live camera</a>
     <form method="post" action="/sessions/{{ session.id }}/close" onsubmit="return confirm('Close session? Students without a record will be marked absent.')"><button class="btn btn-warning">Close {{ t.session|lower }}</button></form>
+    {% else %}
+    <form method="post" action="/sessions/{{ session.id }}/notify-parents"><button class="btn btn-outline-primary" title="Message the parents of absent students (each parent only once)"><i class="bi bi-chat-dots"></i> Message parents</button></form>
     {% endif %}
     <div class="btn-group"><a class="btn btn-outline-secondary" href="/reports/session/{{ session.id }}?fmt=xlsx">Excel</a>
     <a class="btn btn-outline-secondary" href="/reports/session/{{ session.id }}?fmt=pdf">PDF</a>

@@ -113,6 +113,10 @@ class Student(Base):
     section: Mapped[str] = mapped_column(String(10), default="A")
     email: Mapped[str | None] = mapped_column(String(120))
     phone: Mapped[str | None] = mapped_column(String(40))
+    # parent / guardian (or emergency contact for employees) - receives absence messages
+    guardian_name: Mapped[str | None] = mapped_column(String(120))
+    guardian_phone: Mapped[str | None] = mapped_column(String(40))
+    guardian_email: Mapped[str | None] = mapped_column(String(120))
     consent_given: Mapped[bool] = mapped_column(Boolean, default=False)
     consent_at: Mapped[datetime | None] = mapped_column(DateTime)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -261,6 +265,33 @@ class Notification(Base):
 
     student: Mapped[Student | None] = relationship()
     course: Mapped[Course | None] = relationship()
+
+
+class OutboxMessage(Base):
+    """A message to a parent/guardian (absence alert), with its delivery state.
+
+    channel: phone (sent by the FaceAttend Android app through the school phone's SIM),
+    sms / whatsapp (Twilio), email (SMTP). status: pending -> sending -> sent | failed,
+    or manual (sent by hand with the WhatsApp / SMS link).
+    """
+
+    __tablename__ = "outbox_messages"
+    __table_args__ = (UniqueConstraint("attendance_id", "channel", name="uq_outbox_attendance_channel"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    student_id: Mapped[int | None] = mapped_column(ForeignKey("students.id", ondelete="CASCADE"), index=True)
+    attendance_id: Mapped[int | None] = mapped_column(ForeignKey("attendance.id", ondelete="CASCADE"))
+    channel: Mapped[str] = mapped_column(String(20))
+    recipient: Mapped[str] = mapped_column(String(120))
+    body: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    error: Mapped[str | None] = mapped_column(String(255))
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+    student: Mapped[Student | None] = relationship()
 
 
 class OrgSetting(Base):

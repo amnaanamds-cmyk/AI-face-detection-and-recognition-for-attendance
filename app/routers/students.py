@@ -28,7 +28,9 @@ router = APIRouter()
 def _t(user):
     return terms(user.org.kind)
 
-FIELDS = ("student_code", "roll_number", "name", "department", "semester", "section", "email", "phone")
+FIELDS = ("student_code", "roll_number", "name", "department", "semester", "section", "email", "phone",
+          "guardian_name", "guardian_phone", "guardian_email")
+OPTIONAL = ("email", "phone", "roll_number", "guardian_name", "guardian_phone", "guardian_email")
 
 
 def auto_enroll(db: Session, student: Student) -> int:
@@ -73,6 +75,7 @@ def new_student(request: Request, user: User = Depends(admin_only)):
 async def create_student(request: Request, user: User = Depends(admin_only), db: Session = Depends(get_db)):
     form = await request.form()
     data = {k: (form.get(k) or "").strip() for k in FIELDS}
+    data.update({k: data[k] or None for k in OPTIONAL})
     if not data["student_code"] or not data["name"]:
         flash(request, f"{_t(user).person_id} and name are required", "danger")
         return RedirectResponse("/students/new", status_code=303)
@@ -136,7 +139,7 @@ async def update_student(sid: int, request: Request, user: User = Depends(admin_
         value = str(form[k]).strip()
         if k == "semester":
             st.semester = int(value or 1)
-        elif k in ("email", "phone", "roll_number"):
+        elif k in OPTIONAL:
             setattr(st, k, value or None)
         elif value:
             setattr(st, k, value)

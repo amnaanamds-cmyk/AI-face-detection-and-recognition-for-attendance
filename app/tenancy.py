@@ -23,6 +23,9 @@ _NEW_COLUMNS = [
     ("courses", "schedule_days", "VARCHAR(20)", "'0,1,2,3,4'"),
     ("courses", "schedule_minutes", "INTEGER", "480"),
     ("attendance", "checked_out_at", "DATETIME", None),
+    ("students", "guardian_name", "VARCHAR(120)", None),
+    ("students", "guardian_phone", "VARCHAR(40)", None),
+    ("students", "guardian_email", "VARCHAR(120)", None),
 ]
 
 

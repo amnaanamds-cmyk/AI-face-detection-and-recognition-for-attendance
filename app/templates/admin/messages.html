@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="h3 mb-1">Parent messages</h1>
+<p class="text-muted">When a {{ t.session|lower }} closes, the parent or guardian of every absent {{ t.person|lower }} gets a message.</p>
+
+{% if missing %}<div class="alert alert-warning py-2">{{ missing }} active {{ t.people|lower }} have no guardian mobile or e-mail yet:
+  add them on each {{ t.person|lower }}'s Edit page, or import a spreadsheet with a <code>parent phone</code> column.</div>{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <form method="post" action="/messages/settings" class="card card-body h-100">
+      <div class="fw-semibold mb-2">Settings</div>
+      <label class="form-label" for="parent_alerts">Send a message when a {{ t.person|lower }} is</label>
+      <select class="form-select mb-3" id="parent_alerts" name="parent_alerts">
+        {% for v, l in [('off', 'Off - no automatic messages'), ('absent', 'Absent'), ('absent+late', 'Absent or late')] %}
+        <option value="{{ v }}" {{ 'selected' if values.parent_alerts == v }}>{{ l }}</option>{% endfor %}
+      </select>
+      <label class="form-label" for="parent_channel">Send text messages with</label>
+      <select class="form-select" id="parent_channel" name="parent_channel">
+        {% for v, l in [('phone', 'School phone SIM - FaceAttend Android app (free SMS from your own number)'),
+                        ('sms', 'SMS via Twilio' ~ ('' if twilio_sms else ' (not configured)')),
+                        ('whatsapp', 'WhatsApp via Twilio' ~ ('' if twilio_wa else ' (not configured)')),
+                        ('manual', 'Manually - one-click WhatsApp / SMS buttons below')] %}
+        <option value="{{ v }}" {{ 'selected' if values.parent_channel == v }}>{{ l }}</option>{% endfor %}
+      </select>
+      <div class="form-text mb-3">Twilio needs TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_SMS_FROM / TWILIO_WHATSAPP_FROM in the server settings.</div>
+      <div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" name="parent_email" id="parent_email" {{ 'checked' if values.parent_email }}>
+        <label class="form-check-label" for="parent_email">Also send an e-mail when the guardian's e-mail is known (needs SMTP settings)</label></div>
+      <label class="form-label" for="parent_template">Message</label>
+      <textarea class="form-control" id="parent_template" name="parent_template" rows="3" maxlength="600">{{ values.parent_template }}</textarea>
+      <div class="form-text mb-3">Placeholders: <code>{parent}</code> <code>{student}</code> <code>{status}</code> <code>{group}</code> <code>{date}</code> <code>{time}</code> <code>{org}</code>. Any language works (e.g. Urdu).</div>
+      <label class="form-label" for="country_code">Country calling code</label>
+      <input class="form-control mb-3" style="max-width: 120px" id="country_code" name="country_code" value="{{ values.country_code }}" inputmode="numeric">
+      <button class="btn btn-primary align-self-start">Save</button>
+    </form>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card card-body mb-3" id="gateway">
+      <div class="fw-semibold mb-2"><i class="bi bi-phone"></i> Send SMS from a school phone (free)</div>
+      <ol class="small mb-2">
+        <li>Install the <strong>FaceAttend Android app</strong> on a phone with a SIM card and SMS credit.</li>
+        <li>In the app, tap <em>Pair SMS sender</em> and scan this code.</li>
+        <li>Keep the phone on and connected to the internet or the school Wi-Fi: it sends the messages as normal SMS.</li>
+      </ol>
+      {% if values.gateway_token %}
+        <img src="/messages/pair.svg" alt="Pairing code" class="border rounded mb-2" style="width: 220px; height: 220px">
+        <div class="small text-muted mb-2">Server address in the code: <code>{{ server_url }}</code>{% if server_url.startswith('http://127.0.0.1') or server_url.startswith('http://localhost') %}
+          <br><span class="text-danger">This address only works on this computer: open this page from the phone link (Connect phones / share online) before pairing.</span>{% endif %}</div>
+      {% endif %}
+      <form method="post" action="/messages/gateway-token"><button class="btn btn-outline-primary btn-sm">{{ 'New pairing code' if values.gateway_token else 'Create pairing code' }}</button></form>
+    </div>
+    <form method="post" action="/messages/test" class="card card-body">
+      <div class="fw-semibold mb-2">Send a test message</div>
+      <div class="input-group"><input class="form-control" name="to" required placeholder="0300 1234567 or name@example.com"><button class="btn btn-outline-secondary">Send test</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="card mt-3">
+  <div class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
+    <span>Outbox</span>
+    <span class="small">{% for s in ['', 'pending', 'sending', 'manual-pending', 'sent', 'manual', 'failed'] %}
+      <a class="me-2 {{ 'fw-bold' if status == s }}" href="/messages{{ '?status=' ~ s if s }}">{{ s or 'all' }}{% if s %} ({{ counts.get(s, 0) }}){% endif %}</a>{% endfor %}</span>
+  </div>
+  <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+    <thead><tr><th>Created</th><th>{{ t.person }}</th><th>To</th><th>Via</th><th>Message</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for m in msgs %}
+      <tr>
+        <td class="small text-nowrap">{{ m.created_at.strftime('%d %b %H:%M') }}</td>
+        <td class="small">{{ m.student.name if m.student else '(test)' }}</td>
+        <td class="small text-nowrap">{{ m.recipient }}</td>
+        <td class="small">{{ m.channel }}</td>
+        <td class="small" style="max-width: 360px">{{ m.body }}</td>
+        <td class="small text-nowrap">
+          <span class="badge text-bg-{{ {'sent': 'success', 'manual': 'success', 'failed': 'danger', 'sending': 'info'}.get(m.status, 'secondary') }}">{{ m.status }}</span>
+          {% if m.error %}<div class="text-danger" style="max-width: 220px; white-space: normal">{{ m.error }}</div>{% endif %}
+        </td>
+        <td class="text-nowrap">
+          {% if m.channel != 'email' and m.status not in ('sent', 'manual') %}
+            <a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="{{ wa(m) }}" onclick="done({{ m.id }})" title="Open WhatsApp with this message"><i class="bi bi-whatsapp"></i></a>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ sms(m) }}" onclick="done({{ m.id }})" title="Open the SMS app (on a phone)"><i class="bi bi-chat-text"></i></a>
+          {% endif %}
+          {% if m.status == 'failed' %}<form method="post" action="/messages/{{ m.id }}/retry" class="d-inline"><button class="btn btn-sm btn-outline-primary" title="Try again"><i class="bi bi-arrow-repeat"></i></button></form>{% endif %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="7" class="text-muted small p-3">No messages yet. They appear here when a {{ t.session|lower }} closes with absent {{ t.people|lower }}.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+<script>
+  function done(id) { fetch(`/messages/${id}/done`, {method: 'POST'}); }
+</script>
+{% endblock %}

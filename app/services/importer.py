@@ -28,6 +28,11 @@ COLUMN_ALIASES = {
     "section": "section", "sec": "section",
     "email": "email", "emailaddress": "email",
     "phone": "phone", "contact": "phone", "mobile": "phone", "contactno": "phone",
+    "guardian": "guardian_name", "guardianname": "guardian_name", "parent": "guardian_name", "parentname": "guardian_name",
+    "fathername": "guardian_name", "guardianphone": "guardian_phone", "parentphone": "guardian_phone",
+    "parentmobile": "guardian_phone", "fatherphone": "guardian_phone", "fathermobile": "guardian_phone",
+    "guardianmobile": "guardian_phone", "parentcontact": "guardian_phone", "guardianemail": "guardian_email",
+    "parentemail": "guardian_email",
     "consent": "consent_given", "consentgiven": "consent_given", "biometricconsent": "consent_given",
 }
 IMG_EXT = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
@@ -106,7 +111,8 @@ def import_students(db: Session, org_id: int, rows: list[dict[str, str]], *, def
         else:
             rep.updated += 1
         st.name = name
-        for attr in ("roll_number", "department", "section", "email", "phone"):
+        for attr in ("roll_number", "department", "section", "email", "phone", "guardian_name", "guardian_phone",
+                     "guardian_email"):
             if data.get(attr):
                 setattr(st, attr, data[attr])
         if semester is not None:

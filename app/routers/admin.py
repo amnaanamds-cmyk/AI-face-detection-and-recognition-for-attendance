@@ -86,7 +86,8 @@ def settings_page(request: Request, user: User = Depends(admin_only), db: Sessio
     except ModelsMissingError:
         effective, antispoof, models_ok = "motion", False, False
     return render(request, "admin/settings.html", user, values=app_settings.all_settings(db, user.org_id),
-                  defs=app_settings.DEFAULTS, choices=app_settings.CHOICES, effective_mode=effective,
+                  defs={k: v for k, v in app_settings.DEFAULTS.items() if k not in app_settings.MESSAGE_KEYS},
+                  choices=app_settings.CHOICES, effective_mode=effective,
                   antispoof=antispoof, models_ok=models_ok)
 
 
@@ -95,6 +96,8 @@ async def save_settings(request: Request, user: User = Depends(admin_only), db: 
     form = await request.form()
     try:
         for key, (_, typ, _) in app_settings.DEFAULTS.items():
+            if key in app_settings.MESSAGE_KEYS:
+                continue
             if typ is bool:
                 app_settings.set_setting(db, user.org_id, key, form.get(key) == "on")
             elif key in form:

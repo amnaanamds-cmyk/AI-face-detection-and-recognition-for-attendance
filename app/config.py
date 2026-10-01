@@ -129,6 +129,12 @@ class Settings:
     legal_address: str = field(default_factory=lambda: _env("LEGAL_ADDRESS", "[Your registered address]"))
     legal_country: str = field(default_factory=lambda: _env("LEGAL_COUNTRY", "[Country of registration]"))
 
+    # --- Text messages to parents via Twilio (optional; the Android app can send SMS for free) ---
+    twilio_account_sid: str = field(default_factory=lambda: _env("TWILIO_ACCOUNT_SID", ""))
+    twilio_auth_token: str = field(default_factory=lambda: _env("TWILIO_AUTH_TOKEN", ""))
+    twilio_sms_from: str = field(default_factory=lambda: _env("TWILIO_SMS_FROM", ""))            # e.g. +15017122661
+    twilio_whatsapp_from: str = field(default_factory=lambda: _env("TWILIO_WHATSAPP_FROM", ""))  # e.g. +14155238886
+
     # --- Notifications (optional e-mail) ------------------------------------
     smtp_host: str = field(default_factory=lambda: _env("SMTP_HOST", ""))
     smtp_port: int = field(default_factory=lambda: _env_int("SMTP_PORT", 587))

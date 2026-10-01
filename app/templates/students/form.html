@@ -13,6 +13,11 @@
     {% else %}<input type="hidden" name="semester" value="{{ student.semester if student else 1 }}"><input type="hidden" name="section" value="{{ student.section if student else 'A' }}">{% endif %}
     <div class="col-md-6"><label class="form-label">Email</label><input class="form-control" type="email" name="email" value="{{ student.email or '' if student else '' }}"></div>
     <div class="col-md-6"><label class="form-label">Contact</label><input class="form-control" name="phone" value="{{ student.phone or '' if student else '' }}"></div>
+    <div class="col-12"><hr class="my-1"><div class="fw-semibold">{{ 'Parent / guardian' if t.level else 'Emergency contact' }}</div>
+      <div class="form-text">Receives a message when the {{ t.person|lower }} is absent (Admin &gt; Parent messages).</div></div>
+    <div class="col-md-4"><label class="form-label">Name</label><input class="form-control" name="guardian_name" value="{{ student.guardian_name or '' if student else '' }}"></div>
+    <div class="col-md-4"><label class="form-label">Mobile (SMS / WhatsApp)</label><input class="form-control" type="tel" name="guardian_phone" placeholder="0300 1234567" value="{{ student.guardian_phone or '' if student else '' }}"></div>
+    <div class="col-md-4"><label class="form-label">E-mail</label><input class="form-control" type="email" name="guardian_email" value="{{ student.guardian_email or '' if student else '' }}"></div>
     <div class="col-12">
       <div class="form-check"><input class="form-check-input" type="checkbox" name="consent" id="consent" {{ 'checked' if student and student.consent_given }}>
       <label class="form-check-label" for="consent">The {{ t.person|lower }} has given <strong>informed consent</strong> for their facial data to be processed for attendance.</label></div>

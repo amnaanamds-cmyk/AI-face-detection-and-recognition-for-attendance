@@ -41,6 +41,7 @@
           <ul class="dropdown-menu">
             <li><a class="dropdown-item" href="/users">Users &amp; roles</a></li>
             <li><a class="dropdown-item" href="/settings">System settings</a></li>
+            <li><a class="dropdown-item" href="/messages">Parent messages</a></li>
             <li><a class="dropdown-item" href="/audit">AI audit log</a></li>
             <li><a class="dropdown-item" href="/billing">{{ 'Subscription' if edition == 'saas' else 'License' }}</a></li>
             {% if user.is_superadmin %}<li><hr class="dropdown-divider"></li><li><a class="dropdown-item" href="/platform">Platform console</a></li>{% endif %}

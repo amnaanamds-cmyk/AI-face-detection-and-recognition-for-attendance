@@ -1,6 +1,7 @@
 """Attendance rules: status windows, duplicate prevention, closing sessions."""
 from __future__ import annotations
 
+import logging
 import threading
 from dataclasses import dataclass
 from datetime import datetime
@@ -28,6 +29,8 @@ from app.terminology import terms
 from app.vision.backends import get_backend
 from app.vision.liveness import SPOOF, LivenessChecker
 from app.vision.pipeline import FaceTracker, RecognitionPipeline, is_accepted
+
+log = logging.getLogger(__name__)
 
 
 # --------------------------------------------------------------------------- rules
@@ -166,6 +169,11 @@ def close_session(db: Session, session: ClassSession) -> int:
     db.commit()
     live_trackers.pop(session.id, None)
     check_low_attendance(db, session.course_id)
+    from app.services.messaging import queue_for_session  # local import avoids a cycle
+    try:
+        queue_for_session(db, session)
+    except Exception:  # noqa: BLE001 - a messaging problem must never block closing attendance
+        log.exception("could not queue parent messages")
     return len(missing)
 
 

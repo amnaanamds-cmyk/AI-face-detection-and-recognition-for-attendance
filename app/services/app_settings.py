@@ -22,10 +22,23 @@ DEFAULTS: dict[str, tuple[object, type, str]] = {
     "liveness_mode": (env.liveness_mode, str, "Liveness method: auto | cnn | motion | cnn+motion"),
     "antispoof_threshold": (env.antispoof_threshold, float, "Anti-spoofing CNN: min. P(live) to accept"),
     "liveness_motion_threshold": (env.liveness_motion_threshold, float, "Liveness 3-D motion threshold"),
+    # --- messages to parents / guardians (page: Admin > Parent messages)
+    "parent_alerts": ("off", str, "Message parents when their child is: off | absent | absent+late"),
+    "parent_channel": ("phone", str, "Send text messages with: phone (Android app SIM) | sms | whatsapp (Twilio) | manual"),
+    "parent_email": (True, bool, "Also e-mail the guardian when an e-mail address is known"),
+    "parent_template": ("Dear {parent}, {student} was {status} in {group} on {date}. - {org}", str,
+                        "Message text ({parent} {student} {status} {group} {date} {time} {org})"),
+    "country_code": ("92", str, "Country calling code for local numbers like 03001234567 (e.g. 92 = Pakistan)"),
+    "gateway_token": ("", str, "Secret that pairs the FaceAttend Android app (SMS gateway) with this organization"),
 }
 
 
-CHOICES = {"liveness_mode": ("auto", "cnn", "motion", "cnn+motion")}
+# shown on their own page (Admin > Parent messages), not on System settings
+MESSAGE_KEYS = ("parent_alerts", "parent_channel", "parent_email", "parent_template", "country_code", "gateway_token")
+
+CHOICES = {"liveness_mode": ("auto", "cnn", "motion", "cnn+motion"),
+           "parent_alerts": ("off", "absent", "absent+late"),
+           "parent_channel": ("phone", "sms", "whatsapp", "manual")}
 
 
 def _cast(value: str, typ: type):

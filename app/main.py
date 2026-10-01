@@ -63,7 +63,11 @@ async def lifespan(_app: FastAPI):
     database.init_db()
     upgrade_database(database.engine)
     bootstrap_admin()
+    from app.services import tunnel
+    if settings.edition != "saas":
+        tunnel.resume_if_remembered()  # "share online" was on before the restart
     yield
+    tunnel.tunnel.stop_process()  # server quitting: end the tunnel too (it restarts next time if it was on)
 
 
 def create_app() -> FastAPI:

@@ -61,7 +61,9 @@ jobs:
           $env:FACEATTEND_BROWSER = "$PWD\window.bat"
           $env:DATA_DIR = "$env:RUNNER_TEMP\faceattend-data"
           $sw = [Diagnostics.Stopwatch]::StartNew()
-          $launcher = Start-Process -FilePath "dist\FaceAttend\FaceAttend.exe" -PassThru -Wait
+          # (Start-Process -Wait would also wait for the background server it leaves running)
+          $launcher = Start-Process -FilePath "dist\FaceAttend\FaceAttend.exe" -PassThru
+          if (-not $launcher.WaitForExit(120000)) { throw "launcher did not finish" }
           Write-Host "launcher finished after $($sw.Elapsed.TotalSeconds) s (exit $($launcher.ExitCode))"
           if ($launcher.ExitCode -ne 0) { Get-Content "$env:DATA_DIR\logs\*.log" -ErrorAction SilentlyContinue; throw "launcher failed" }
           # the window has closed, but the background server must keep running
@@ -75,10 +77,32 @@ jobs:
           if (-not (Test-Path "HKCU:\Software\Classes\faceattend\shell\open\command")) { throw "faceattend:// link not registered" }
           Write-Host "server still running after the window closed; faceattend:// registered"
           # a second launch reuses the running server
-          $second = Start-Process -FilePath "dist\FaceAttend\FaceAttend.exe" -PassThru -Wait
-          if ($second.ExitCode -ne 0) { throw "second launch failed" }
+          $second = Start-Process -FilePath "dist\FaceAttend\FaceAttend.exe" -PassThru
+          if (-not $second.WaitForExit(60000) -or $second.ExitCode -ne 0) { throw "second launch failed" }
+
+          # share online: a real public https link through Cloudflare (needs a non-default admin password)
+          Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/account/password -Method Post -WebSession $s -Body @{current="admin123"; new="ci-strong-password-1"; confirm="ci-strong-password-1"} | Out-Null
+          Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/share/start -Method Post -WebSession $s | Out-Null
+          $url = $null
+          for ($i = 0; $i -lt 90 -and -not $url; $i++) {
+            Start-Sleep -Seconds 1
+            $st = (Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/share/status -WebSession $s).Content | ConvertFrom-Json
+            if ($st.error) { Write-Host "share error: $($st.error)"; break }
+            $url = $st.url
+          }
+          if ($url) {
+            Write-Host "online link: $url"
+            $ok = $false
+            for ($i = 0; $i -lt 30 -and -not $ok; $i++) {
+              Start-Sleep -Seconds 2
+              try { $r = Invoke-WebRequest -UseBasicParsing "$url/login" -TimeoutSec 15; $ok = $r.StatusCode -eq 200 -and $r.Content -match "FaceAttend" } catch {}
+            }
+            if ($ok) { Write-Host "the app loads through the public link" } else { Write-Host "::warning::public link did not answer (Cloudflare quick tunnels are best-effort)" }
+          } else { Write-Host "::warning::share online did not start on this runner" }
+
           # quit
-          Start-Process -FilePath "dist\FaceAttend\FaceAttend.exe" -ArgumentList "--quit" -Wait
+          $q = Start-Process -FilePath "dist\FaceAttend\FaceAttend.exe" -ArgumentList "--quit" -PassThru
+          $q.WaitForExit(60000) | Out-Null
           Start-Sleep -Seconds 2
           $stopped = $false
           try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/login -TimeoutSec 3 | Out-Null } catch { $stopped = $true }

@@ -11,7 +11,12 @@ Login:   admin / admin123  - change the password after the first login.
 
 Camera:  allow camera access the first time (it is remembered).
 
-Phones and tablets (optional, same Wi-Fi):
+Phones anywhere (easiest): tray icon > Connect phones / share online >
+         Share online. You get an https:// link + QR code that works on any phone
+         (mobile data too) while this computer runs FaceAttend. Change the admin
+         password first. The link changes each time sharing is restarted.
+
+Phones and tablets on the same Wi-Fi (no internet needed):
          in the app open your name (top right) > Mobile app, scan the QR code
          and follow the one-time certificate steps shown there. If Windows
          Firewall asks, allow FaceAttend on PRIVATE networks.

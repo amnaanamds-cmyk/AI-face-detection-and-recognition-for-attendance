@@ -1,26 +1,71 @@
 {% extends "base.html" %}
-{% block title %}Mobile app - {{ app_name }}{% endblock %}
+{% block title %}Mobile app - {{ app_name }}{% if can_share %}
+<script>
+  async function share(action) {
+    const msg = document.getElementById('shareMsg');
+    msg.className = 'small mt-2 text-muted'; msg.textContent = action === 'start' ? 'Starting… this takes about 10 seconds the first time.' : 'Stopping…';
+    const r = await fetch('/share/' + action, {method: 'POST'}); const d = await r.json();
+    if (d.error && !d.running) { msg.className = 'small mt-2 text-danger'; msg.textContent = d.error; return; }
+    for (let i = 0; i < 120 && action === 'start'; i++) {
+      const s = await (await fetch('/share/status')).json();
+      if (s.url || s.error) break;
+      await new Promise(res => setTimeout(res, 1000));
+    }
+    location.reload();
+  }
+  document.getElementById('shareStart')?.addEventListener('click', () => share('start'));
+  document.getElementById('shareStop')?.addEventListener('click', () => share('stop'));
+</script>
+{% endif %}
+{% endblock %}
 {% block content %}
 <div class="row justify-content-center"><div class="col-lg-9 col-xl-8">
 <h1 class="h3 mb-1"><i class="bi bi-phone"></i> Mobile app setup</h1>
 <p class="text-muted">Use the system on Android phones, iPhones and tablets: {{ t.staffs|lower }} take attendance with the phone camera,
 {{ t.people|lower }} check their own attendance. The app installs from the browser, with no app store needed.</p>
 
-{% if not url %}
-<div class="alert alert-warning">
-  <strong>Phones cannot connect yet.</strong> On the server PC, close the current window and start the system with
-  <code>start-mobile.bat</code> (Windows) or <code>./start.sh --lan</code> (Linux/macOS). Then open this page again.
-  It will show a QR code for your phones.
-</div>
-{% else %}
+{% if can_share %}
+<div class="card mb-3 border-success"><div class="card-body">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <div><div class="fw-semibold"><i class="bi bi-globe2 text-success"></i> Share online: any phone, anywhere</div>
+      <div class="small text-muted">A secure <code>https://</code> link through Cloudflare. Works on mobile data and other Wi-Fi networks; the camera works and the app installs. No certificate needed.</div></div>
+    {% if share.running %}<button class="btn btn-outline-danger" id="shareStop"><i class="bi bi-stop-circle"></i> Stop sharing</button>
+    {% else %}<button class="btn btn-success" id="shareStart"><i class="bi bi-share"></i> Share online</button>{% endif %}
+  </div>
+  <div id="shareMsg" class="small mt-2 {{ 'text-danger' if share.error else 'text-muted' }}">{{ share.error or ('Starting… this takes about 10 seconds the first time.' if share.starting else '') }}</div>
+  {% if share.url %}
+  <div class="d-md-flex align-items-center gap-4 mt-3">
+    <img src="/mobile/qr.svg?u=online" alt="QR code" class="border rounded" style="width:200px;height:200px">
+    <div class="mt-3 mt-md-0">
+      <div class="small text-muted">Scan with the phone camera or send this link (WhatsApp, e-mail…):</div>
+      <div class="fs-5 fw-semibold user-select-all text-break">{{ share.url }}</div>
+      <div class="d-flex gap-2 mt-2">
+        <button class="btn btn-sm btn-outline-secondary" onclick="navigator.clipboard.writeText('{{ share.url }}'); this.textContent='Copied'">Copy link</button>
+        <a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="https://wa.me/?text={{ ('Open ' ~ app_name ~ ': ' ~ share.url)|urlencode }}"><i class="bi bi-whatsapp"></i> Send via WhatsApp</a>
+      </div>
+      <div class="small text-muted mt-2">The link works while this computer is on and {{ app_name }} is running. It changes when sharing is restarted.
+        Anyone with the link sees the login page, so use strong passwords.</div>
+    </div>
+  </div>
+  {% endif %}
+</div></div>
+{% endif %}
+
+{% if url %}
 <div class="card mb-3"><div class="card-body d-md-flex align-items-center gap-4">
-  <img src="/mobile/qr.svg" alt="QR code" class="border rounded" style="width:220px;height:220px">
+  <img src="/mobile/qr.svg" alt="QR code" class="border rounded" style="width:200px;height:200px">
   <div class="mt-3 mt-md-0">
+    <div class="fw-semibold"><i class="bi bi-wifi"></i> Same Wi-Fi (no internet needed)</div>
     <div class="small text-muted">Scan with the phone camera, or type:</div>
     <div class="fs-5 fw-semibold user-select-all">{{ url }}</div>
-    <div class="small text-muted mt-2">The phone must be on the <strong>same Wi-Fi</strong> as this server.</div>
+    <div class="small text-muted mt-2">The phone must be on the <strong>same Wi-Fi</strong> as this computer and trust its certificate once (steps below).</div>
   </div>
 </div></div>
+{% elif not can_share and not saas %}
+<div class="alert alert-warning">
+  <strong>Phones cannot connect yet.</strong> Start the system with the {{ app_name }} desktop app, <code>start-mobile.bat</code> (Windows)
+  or <code>./start.sh --lan</code> (Linux/macOS), then open this page again.
+</div>
 {% endif %}
 
 <div class="row g-3">
@@ -55,4 +100,22 @@
   </ul>
 </div></div>
 </div></div>
+{% if can_share %}
+<script>
+  async function share(action) {
+    const msg = document.getElementById('shareMsg');
+    msg.className = 'small mt-2 text-muted'; msg.textContent = action === 'start' ? 'Starting… this takes about 10 seconds the first time.' : 'Stopping…';
+    const r = await fetch('/share/' + action, {method: 'POST'}); const d = await r.json();
+    if (d.error && !d.running) { msg.className = 'small mt-2 text-danger'; msg.textContent = d.error; return; }
+    for (let i = 0; i < 120 && action === 'start'; i++) {
+      const s = await (await fetch('/share/status')).json();
+      if (s.url || s.error) break;
+      await new Promise(res => setTimeout(res, 1000));
+    }
+    location.reload();
+  }
+  document.getElementById('shareStart')?.addEventListener('click', () => share('start'));
+  document.getElementById('shareStop')?.addEventListener('click', () => share('stop'));
+</script>
+{% endif %}
 {% endblock %}

@@ -25,6 +25,29 @@ def integrity(request: Request, user: User = Depends(admin_only), db: Session = 
     return render(request, "admin/integrity.html", user, r=report, recent=recent, kid=certificates.key_id())
 
 
+@router.get("/proxy")
+def proxy_watch(request: Request, user: User = Depends(admin_only), db: Session = Depends(get_db)):
+    from datetime import timedelta
+
+    from app.models import ClassSession, Course, Notification, RecognitionEvent
+    from app.services import proxy
+
+    alerts = db.scalars(select(Notification).join(Student, Notification.student_id == Student.id)
+                        .where(Notification.level == proxy.LEVEL, Student.org_id == user.org_id)
+                        .order_by(Notification.created_at.desc()).limit(100)).all()
+    since = proxy.now() - timedelta(days=30)
+    clashes = db.scalar(select(func.count(RecognitionEvent.id)).join(Student, RecognitionEvent.student_id == Student.id)
+                        .where(Student.org_id == user.org_id, RecognitionEvent.event == "clash",
+                               RecognitionEvent.created_at >= since))
+    spoofs = db.scalar(select(func.count(RecognitionEvent.id))
+                       .join(ClassSession, RecognitionEvent.session_id == ClassSession.id)
+                       .join(Course, ClassSession.course_id == Course.id)
+                       .where(Course.org_id == user.org_id, RecognitionEvent.event == "spoof",
+                              RecognitionEvent.created_at >= since))
+    return render(request, "admin/proxy.html", user, alerts=alerts, clashes=clashes or 0, spoofs=spoofs or 0,
+                  overrides=proxy.manual_overrides(db, user.org_id))
+
+
 def _verify_url(request: Request) -> str:
     return (public_url(request) or str(request.base_url).rstrip("/")) + "/verify"
 

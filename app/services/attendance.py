@@ -131,6 +131,13 @@ def mark_attendance(
             select(Attendance).where(Attendance.student_id == student_id, Attendance.session_id == session.id)
         )
         return MarkResult(False, True, f"{student.name}: attendance already marked", existing)
+    try:
+        from app.services.proxy import check_impossible_presence  # local import avoids a cycle
+        if check_impossible_presence(db, rec):
+            db.commit()
+    except Exception:  # noqa: BLE001 - a proxy check must never block marking
+        log.exception("proxy check failed")
+        db.rollback()
     verb = "checked in" if terms(student.org.kind).check_out and student.org else status.value.title()
     if status != AttendanceStatus.present and terms(student.org.kind).check_out:
         verb = f"checked in ({status.value})"
@@ -331,7 +338,16 @@ def _recognize(db: Session, org_id: int, tracker_key: int, liveness_required: bo
                 st = db.get(Student, sid)
                 names[sid] = (st.name, st.student_code) if st and st.org_id == org_id else ("?", "?")
 
-            if r.liveness == SPOOF:
+            if r.clash is not None:
+                label, state = "Same person twice?", "spoof"
+                track.outcome = "Two faces match the same person - possible proxy (photo or look-alike). Not accepted."
+                if not track.marked:
+                    from app.services.proxy import identity_clash
+                    student = db.get(Student, r.clash)
+                    if student is not None and student.org_id == org_id:
+                        identity_clash(db, student, db.get(ClassSession, audit_session_id) if audit_session_id else None)
+                    _log(db, track, "clash", audit_session_id, "clash", r.clash, r.similarity)
+            elif r.liveness == SPOOF:
                 label, state = "Spoof suspected", "spoof"
                 track.outcome = "Rejected: liveness check failed" + (
                     f" - {track.liveness.reason}" if track.liveness.reason else "")

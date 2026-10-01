@@ -118,6 +118,7 @@ class FaceResult:
     liveness: str                # checking | live | spoof | disabled
     liveness_score: float
     track: Track = field(repr=False)
+    clash: int | None = None     # the same person was confirmed on another face in this frame
 
 
 class RecognitionPipeline:
@@ -180,6 +181,12 @@ class RecognitionPipeline:
                     track=track,
                 )
             )
+        # One person cannot be in front of the camera twice: if two faces are confirmed as the same
+        # student, one of them is a photo, a screen, a twin or a look-alike - accept neither.
+        confirmed = [r.student_id for r in results if r.student_id is not None]
+        for r in results:
+            if r.student_id is not None and confirmed.count(r.student_id) > 1:
+                r.clash, r.student_id = r.student_id, None
         return results
 
 

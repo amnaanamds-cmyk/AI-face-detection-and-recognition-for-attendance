@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="h3 mb-1"><i class="bi bi-incognito"></i> Proxy watch</h1>
+<p class="text-muted">Attendance that cannot be true: the same face twice in one frame, the same {{ t.person|lower }} in two
+{{ t.groups|lower }} at the same time, photos and screens held up to the camera, and who marks people present by hand.</p>
+<div class="row g-3 mb-3">
+  <div class="col-md-4"><div class="card stat"><div class="card-body"><div class="small text-muted">Proxy alerts</div><div class="display-6 text-danger">{{ alerts|length }}</div></div></div></div>
+  <div class="col-md-4"><div class="card stat"><div class="card-body"><div class="small text-muted">Same face twice (30 days)</div><div class="display-6">{{ clashes }}</div></div></div></div>
+  <div class="col-md-4"><div class="card stat"><div class="card-body"><div class="small text-muted">Photo / screen attempts (30 days)</div><div class="display-6">{{ spoofs }}</div></div></div></div>
+</div>
+<div class="row g-3">
+  <div class="col-lg-7"><div class="card"><div class="card-header">Alerts</div>
+    <ul class="list-group list-group-flush">
+    {% for a in alerts %}<li class="list-group-item small"><div class="text-muted">{{ a.created_at.strftime('%d %b %Y %H:%M') }}</div>{{ a.message }}</li>
+    {% else %}<li class="list-group-item text-muted small">No proxy attempts detected.</li>{% endfor %}
+    </ul></div></div>
+  <div class="col-lg-5"><div class="card"><div class="card-header">Marked present by hand (30 days)</div>
+    <table class="table table-sm mb-0 small"><thead><tr><th>Staff</th><th>By hand</th><th>Of all present</th></tr></thead><tbody>
+    {% for o in overrides %}<tr><td>{{ o.actor }}</td><td>{{ o.manual }}</td><td><span class="{{ 'text-danger fw-bold' if o.share >= 30 }}">{{ o.share }}%</span></td></tr>
+    {% else %}<tr><td colspan="3" class="text-muted">Nobody marked anyone present by hand.</td></tr>{% endfor %}
+    </tbody></table>
+    <div class="card-body small text-muted border-top">From the tamper-evident ledger. A high share means the camera rarely confirmed these people. Worth a look, not proof of anything.</div>
+  </div></div>
+</div>
+{% endblock %}

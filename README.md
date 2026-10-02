@@ -29,7 +29,7 @@ members/events).
 
 | Document | For |
 |---|---|
-| [docs/COMPETITIVE_FEATURES.md](docs/COMPETITIVE_FEATURES.md) | The five differentiators (forecast, tamper-evident ledger, proxy watch, two-way parent SMS, Ask FaceAttend) and a 5-minute demo script |
+| [docs/COMPETITIVE_FEATURES.md](docs/COMPETITIVE_FEATURES.md) | Ten differentiators (forecast, tamper-evident ledger, proxy watch, two-way parent SMS, Ask FaceAttend, revocable face data, self-learning recognition, emergency roll call, self-deleting visitor passes, exam guard) and a demo script |
 | [docs/MOBILE_AND_MESSAGES.md](docs/MOBILE_AND_MESSAGES.md) | Phones (share online / same Wi-Fi), the Android app (Android Studio), SMS / WhatsApp messages to parents |
 | [docs/SAAS_DEPLOYMENT.md](docs/SAAS_DEPLOYMENT.md) | Running the hosted edition: Docker + HTTPS + Stripe, and selling self-hosted licences |
 | [docs/LAUNCH_CHECKLIST.md](docs/LAUNCH_CHECKLIST.md) | Legal, security and quality checks before selling |

@@ -16,6 +16,7 @@ DEFAULTS: dict[str, tuple[object, type, str]] = {
                      "questions and the attendance figures needed to answer them are sent to Anthropic)"),
     "adaptive_gallery": (True, bool, "Self-learning recognition: keep a new view of a face after a very confident, "
                          "liveness-verified match (adapts to beards, glasses, growing up)"),
+    "visitor_log_days": (30, int, "Keep the visitor log (names and times, no face data) for this many days"),
     "term_weeks": (16, int, "Length of the term / semester in weeks (attendance forecast)"),
     "match_threshold": (env.match_threshold, float, "Face match threshold (cosine similarity)"),
     "match_margin": (env.match_margin, float, "Required margin over the 2nd-best student"),

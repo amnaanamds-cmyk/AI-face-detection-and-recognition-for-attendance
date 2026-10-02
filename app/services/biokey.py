@@ -92,11 +92,11 @@ def rotate(db: Session, org_id: int) -> int:
     """Re-protect every template of the organization with a brand-new key. Returns templates updated."""
     from app.vision.matcher import gallery_cache
 
-    rows = db.scalars(select(FaceEmbedding).join(Student).where(Student.org_id == org_id)).all()
-    raw = []
-    for r in rows:
-        v = unprotect(db, org_id, r.embedding, r.key_version or 0)
-        raw.append(v)
+    from app.models import Visitor
+
+    rows = list(db.scalars(select(FaceEmbedding).join(Student).where(Student.org_id == org_id)).all())
+    rows += list(db.scalars(select(Visitor).where(Visitor.org_id == org_id, Visitor.embedding.is_not(None))).all())
+    raw = [unprotect(db, org_id, r.embedding, r.key_version or 0) for r in rows]
     old_version, _ = current(db, org_id)
     new_version = old_version + 1
     _store(db, org_id, new_version, _new_seed())
@@ -106,7 +106,10 @@ def rotate(db: Session, org_id: int) -> int:
     count = 0
     for r, v in zip(rows, raw):
         if v is None:           # unreadable template (should not happen): drop it rather than keep it unprotected
-            db.delete(r)
+            if isinstance(r, FaceEmbedding):
+                db.delete(r)
+            else:
+                r.embedding = None
             continue
         r.embedding, r.key_version = protect(db, org_id, v)
         count += 1

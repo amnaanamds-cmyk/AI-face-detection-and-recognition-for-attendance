@@ -45,6 +45,7 @@ class Track:
     final_state: str = ""  # marked | checked_out | duplicate | rejected (after the attendance decision)
     logged: set = field(default_factory=set)  # audit events already written for this track
     embedding: np.ndarray | None = None      # running mean embedding of this face
+    guest: str = ""        # label when the face is a registered visitor (not a member of the organization)
 
     def consensus(self, required: int) -> tuple[int | None, float]:
         ids = [sid for sid, _ in self.votes if sid is not None]

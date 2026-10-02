@@ -48,9 +48,13 @@ def purge_biometrics(db: Session, org_id: int) -> int:
     rows = db.scalars(select(FaceEmbedding).join(Student).where(Student.org_id == org_id)).all()
     for e in rows:
         db.delete(e)
+    from app.models import Visitor
+    guests = db.scalars(select(Visitor).where(Visitor.org_id == org_id, Visitor.embedding.is_not(None))).all()
+    for v in guests:
+        v.embedding, v.purged_at = None, now()
     db.commit()
     gallery_cache.invalidate(org_id)
-    return len(rows)
+    return len(rows) + len(guests)
 
 
 def export_person(db: Session, student: Student) -> dict:

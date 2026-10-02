@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="h3 mb-1"><i class="bi bi-person-badge"></i> Visitors</h1>
+<p class="text-muted">Guest passes without badges: the entrance kiosk recognises the guest for today only. When the pass ends, the
+face data <strong>deletes itself</strong>. Only the visit log below (no face data) is kept.</p>
+<div class="row g-3">
+  <div class="col-lg-5"><div class="card card-body">
+    <div class="fw-semibold mb-2">New visitor pass</div>
+    <div class="video-wrap mb-2"><video id="video" autoplay playsinline muted></video></div>
+    <div class="d-flex gap-2 mb-2"><button class="btn btn-outline-secondary btn-sm" id="btnCam">Start camera</button>
+      <button class="btn btn-outline-primary btn-sm" id="btnSnap" disabled>Take 3 photos</button><span class="small text-muted align-self-center"><span id="n">0</span> photos</span></div>
+    <div id="thumbs" class="d-flex gap-1 mb-2"></div>
+    <input class="form-control mb-2" id="name" placeholder="Visitor's name *">
+    <div class="row g-2 mb-2"><div class="col"><input class="form-control" id="host" placeholder="Visiting (host)"></div>
+      <div class="col"><input class="form-control" id="phone" placeholder="Mobile"></div></div>
+    <input class="form-control mb-2" id="purpose" placeholder="Purpose (e.g. parent meeting, delivery)">
+    <select class="form-select mb-2" id="hours"><option value="0">Valid until end of today</option><option value="1">1 hour</option><option value="2">2 hours</option><option value="4">4 hours</option></select>
+    <div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="consent"><label class="form-check-label small" for="consent">
+      The visitor agrees that their face is used to recognise them <strong>during this visit only</strong>; the face data is deleted automatically when the pass ends.</label></div>
+    <button class="btn btn-primary" id="btnSave" disabled>Create pass</button>
+    <div id="result" class="mt-2"></div>
+  </div></div>
+  <div class="col-lg-7"><div class="card"><div class="card-header">Visit log (last 30 days)</div>
+    <div class="table-responsive"><table class="table table-sm align-middle mb-0 small">
+      <thead><tr><th>Visitor</th><th>Host / purpose</th><th>In</th><th>Out</th><th>Face data</th><th></th></tr></thead>
+      <tbody>{% for v in log %}
+        <tr><td>{{ v.name }}{% if v.phone %}<div class="text-muted">{{ v.phone }}</div>{% endif %}</td>
+          <td>{{ v.host or '' }}<div class="text-muted">{{ v.purpose or '' }}</div></td>
+          <td class="text-nowrap">{{ v.checked_in_at.strftime('%d %b %H:%M') if v.checked_in_at else '--' }}</td>
+          <td class="text-nowrap">{{ v.checked_out_at.strftime('%H:%M') if v.checked_out_at else ('on site' if v.checked_in_at else '--') }}</td>
+          <td>{% if v.embedding %}<span class="badge text-bg-warning">until {{ v.expires_at.strftime('%H:%M') }}</span>{% else %}<span class="badge text-bg-success">deleted</span>{% endif %}</td>
+          <td>{% if v.embedding or v.on_site %}<form method="post" action="/visitors/{{ v.id }}/end"><button class="btn btn-sm btn-outline-danger">End visit</button></form>{% endif %}</td></tr>
+      {% else %}<tr><td colspan="6" class="text-muted p-3">No visitors yet.</td></tr>{% endfor %}</tbody>
+    </table></div></div></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/camera.js"></script>
+<script>
+const $ = id => document.getElementById(id), shots = [], cam = new Camera($('video'));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+function ready() { $('btnSave').disabled = !(shots.length && $('name').value.trim() && $('consent').checked); }
+['name', 'consent'].forEach(id => $(id).addEventListener('input', ready));
+$('btnCam').onclick = async () => { try { await cam.start(); $('btnSnap').disabled = false; } catch (e) { alert('Camera error: ' + e.message); } };
+$('btnSnap').onclick = async () => {
+  shots.length = 0; $('thumbs').innerHTML = '';
+  for (let i = 0; i < 3; i++) { const d = cam.capture(0.9); shots.push(d); const im = new Image(); im.src = d; im.className = 'thumb'; $('thumbs').appendChild(im); await new Promise(r => setTimeout(r, 500)); }
+  $('n').textContent = shots.length; ready();
+};
+$('btnSave').onclick = async () => {
+  $('btnSave').disabled = true;
+  const body = {name: $('name').value, host: $('host').value, phone: $('phone').value, purpose: $('purpose').value,
+                hours: +$('hours').value, consent: $('consent').checked, images: shots};
+  const r = await fetch('/api/visitors', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  const d = await r.json();
+  if (!r.ok) { $('result').innerHTML = `<div class="alert alert-danger py-2">${esc(d.detail)}</div>`; ready(); return; }
+  $('result').innerHTML = `<div class="alert alert-success py-2">Pass created for ${esc(d.name)}, valid until ${esc(d.expires_at)}. They can now check in at the kiosk.</div>`;
+  setTimeout(() => location.reload(), 1500);
+};
+</script>
+{% endblock %}

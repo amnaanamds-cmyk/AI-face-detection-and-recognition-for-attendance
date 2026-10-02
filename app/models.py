@@ -323,6 +323,32 @@ class OutboxMessage(Base):
     student: Mapped[Student | None] = relationship()
 
 
+class Visitor(Base):
+    """A guest with a temporary pass. The face template self-destructs at `expires_at`; the visit log
+    (name, host, times - no biometrics) is kept for `visitor_log_days`."""
+
+    __tablename__ = "visitors"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    phone: Mapped[str | None] = mapped_column(String(40))
+    host: Mapped[str | None] = mapped_column(String(120))
+    purpose: Mapped[str | None] = mapped_column(String(200))
+    created_by: Mapped[str | None] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    embedding: Mapped[bytes | None] = mapped_column(LargeBinary)      # NULL once purged
+    key_version: Mapped[int] = mapped_column(Integer, default=0)
+    checked_in_at: Mapped[datetime | None] = mapped_column(DateTime)
+    checked_out_at: Mapped[datetime | None] = mapped_column(DateTime)
+    purged_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+    @property
+    def on_site(self) -> bool:
+        return self.checked_in_at is not None and self.checked_out_at is None
+
+
 class InboxMessage(Base):
     """An SMS a parent sent to the school phone (forwarded by the FaceAttend Android app)."""
 

@@ -318,7 +318,7 @@ def _log(db: Session, track, key: str, session_id: int, event: str, student_id=N
 
 
 def _recognize(db: Session, org_id: int, tracker_key: int, liveness_required: bool, frame: np.ndarray,
-               t: float | None, session_for, audit_session_id: int | None):
+               t: float | None, session_for, audit_session_id: int | None, guests: bool = False):
     """Shared by the live session page and the kiosk: run the AI pipeline on one frame and apply the rules.
 
     ``session_for(student)`` returns the session a recognised person is marked in.
@@ -353,7 +353,31 @@ def _recognize(db: Session, org_id: int, tracker_key: int, liveness_required: bo
                     f" - {track.liveness.reason}" if track.liveness.reason else "")
                 _log(db, track, "spoof", audit_session_id, "spoof", sid, r.similarity, r.liveness_score)
             elif r.student_id is None:
-                if r.candidate_id is None and len(track.votes) == track.votes.maxlen and all(v is None for v, _ in track.votes):
+                settled = (r.candidate_id is None and len(track.votes) == track.votes.maxlen
+                           and all(v is None for v, _ in track.votes))
+                if guests and settled and not track.guest and track.embedding is not None:
+                    from app.services import visitors   # local import avoids a cycle
+                    v = visitors.match(db, org_id, track.embedding)
+                    track.guest = f"{v.id}:{v.name}" if v else "-"
+                if guests and track.guest and track.guest != "-":
+                    vid, gname = track.guest.split(":", 1)
+                    label = f"{gname} (guest)"
+                    if r.liveness not in (LIVE, "disabled"):
+                        state, track.outcome = "checking", "Liveness check: please look at the camera"
+                    elif not track.marked:
+                        from app.models import Visitor
+                        from app.services import visitors
+                        vis = db.get(Visitor, int(vid))
+                        if vis is not None and vis.embedding is not None:
+                            track.final_state, track.outcome = visitors.seen(db, org_id, vis)
+                        else:
+                            track.final_state, track.outcome = "rejected", "Visitor pass has ended"
+                        track.marked = True
+                        events.append({"name": label, "state": track.final_state, "message": track.outcome})
+                        state = track.final_state
+                    else:
+                        state = track.final_state
+                elif settled:
                     label, state = "Unknown", "unknown"
                     track.outcome = "Face not registered"
                     _log(db, track, "unknown", audit_session_id, "unknown", None, r.similarity)
@@ -421,7 +445,7 @@ def process_kiosk_frame(db: Session, org_id: int, frame: np.ndarray, t: float | 
     liveness = bool(app_settings.get_setting(db, org_id, "liveness_enabled"))
     when = now()
     out, events, mode = _recognize(db, org_id, -org_id, liveness, frame, t,
-                                   lambda student: kiosk_session_for(db, student, when), None)
+                                   lambda student: kiosk_session_for(db, student, when), None, guests=True)
     return {"faces": out, "events": events, "liveness_mode": mode}
 
 

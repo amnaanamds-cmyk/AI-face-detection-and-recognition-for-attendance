@@ -349,6 +349,37 @@ class Visitor(Base):
         return self.checked_in_at is not None and self.checked_out_at is None
 
 
+class MusterEvent(Base):
+    """An emergency roll call (evacuation, fire drill): who was on site, and who has been accounted for."""
+
+    __tablename__ = "muster_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+    started_by: Mapped[str | None] = mapped_column(String(80))
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime)
+    note: Mapped[str | None] = mapped_column(String(200))
+    entries: Mapped[list["MusterEntry"]] = relationship(back_populates="event", cascade="all, delete-orphan",
+                                                        order_by="MusterEntry.name")
+
+
+class MusterEntry(Base):
+    __tablename__ = "muster_entries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    event_id: Mapped[int] = mapped_column(ForeignKey("muster_events.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(10))            # person | visitor
+    ref_id: Mapped[int] = mapped_column(Integer)
+    name: Mapped[str] = mapped_column(String(120))
+    detail: Mapped[str | None] = mapped_column(String(120))  # ID / host
+    expected: Mapped[bool] = mapped_column(Boolean, default=True)   # on the on-site list when the alarm started
+    safe_at: Mapped[datetime | None] = mapped_column(DateTime)
+    method: Mapped[str | None] = mapped_column(String(10))   # face | manual
+    marked_by: Mapped[str | None] = mapped_column(String(80))
+    event: Mapped[MusterEvent] = relationship(back_populates="entries")
+
+
 class InboxMessage(Base):
     """An SMS a parent sent to the school phone (forwarded by the FaceAttend Android app)."""
 

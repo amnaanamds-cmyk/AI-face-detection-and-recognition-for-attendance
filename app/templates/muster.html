@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block content %}
+{% if not ev %}
+<h1 class="h3 mb-1 text-danger"><i class="bi bi-exclamation-octagon"></i> Emergency roll call</h1>
+<p class="text-muted">For an evacuation or a fire drill. Starting it freezes the list of everyone on site right now; at the assembly point a
+phone or tablet camera ticks people off as they walk past, and the screen shows who is still <strong>unaccounted for</strong>.</p>
+<form method="post" action="/muster/start" class="card card-body border-danger mb-3" onsubmit="return confirm('Start the emergency roll call now?')">
+  <div class="d-flex flex-wrap gap-2 align-items-center">
+    <input class="form-control" style="max-width: 360px" name="note" placeholder="Reason (e.g. fire alarm, drill)">
+    <button class="btn btn-danger btn-lg"><i class="bi bi-megaphone"></i> Start roll call</button>
+  </div>
+  <div class="small text-muted mt-2">On site now: <strong>{{ people|length }}</strong> {{ t.people|lower }} and <strong>{{ guests|length }}</strong> visitor{{ 's' if guests|length != 1 }}.</div>
+</form>
+<div class="row g-3">
+  <div class="col-lg-6"><div class="card"><div class="card-header">On site now</div><ul class="list-group list-group-flush small">
+    {% for p in people %}<li class="list-group-item">{{ p.name }} <span class="text-muted">{{ p.student_code }}</span></li>{% endfor %}
+    {% for g in guests %}<li class="list-group-item">{{ g.name }} <span class="badge text-bg-secondary">guest</span> <span class="text-muted">{{ g.host or '' }}</span></li>{% endfor %}
+    {% if not people and not guests %}<li class="list-group-item text-muted">Nobody checked in today.</li>{% endif %}
+  </ul></div></div>
+  <div class="col-lg-6"><div class="card"><div class="card-header">Past roll calls</div><ul class="list-group list-group-flush small">
+    {% for p, s in past %}<li class="list-group-item d-flex justify-content-between"><a href="/muster/{{ p.id }}">{{ p.started_at.strftime('%d %b %Y %H:%M') }} {{ p.note or '' }}</a>
+      <span>{{ s.safe }}/{{ s.expected }} safe in {{ s.minutes }} min{% if s.missing %} <span class="text-danger">({{ s.missing|length }} missing at end)</span>{% endif %}</span></li>
+    {% else %}<li class="list-group-item text-muted">None yet.</li>{% endfor %}</ul></div></div>
+</div>
+{% else %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+  <div><h1 class="h3 mb-0 {{ 'text-danger' if s.active }}"><i class="bi bi-exclamation-octagon"></i> Roll call {{ 'in progress' if s.active else 'report' }}</h1>
+    <div class="text-muted">Started {{ ev.started_at.strftime('%d %b %Y %H:%M:%S') }} by {{ ev.started_by }}{% if ev.note %} &middot; {{ ev.note }}{% endif %}
+      {% if not s.active %} &middot; ended {{ ev.ended_at.strftime('%H:%M:%S') }} ({{ s.minutes }} min){% endif %}</div></div>
+  {% if s.active %}<div class="d-flex gap-2">
+    <form method="post" action="/muster/{{ ev.id }}/notify" onsubmit="return confirm('Send an SMS to the emergency contacts of everyone still missing?')"><button class="btn btn-outline-warning">Message contacts of missing</button></form>
+    <form method="post" action="/muster/{{ ev.id }}/end" onsubmit="return confirm('End the roll call?')"><button class="btn btn-outline-secondary">End roll call</button></form></div>{% else %}
+    <button class="btn btn-outline-secondary" onclick="print()"><i class="bi bi-printer"></i> Print</button>{% endif %}
+</div>
+<div class="row g-3 mb-3">
+  <div class="col-4"><div class="card stat"><div class="card-body"><div class="small text-muted">Unaccounted</div><div class="display-6 text-danger" id="nMissing">{{ s.missing|length }}</div></div></div></div>
+  <div class="col-4"><div class="card stat"><div class="card-body"><div class="small text-muted">Safe</div><div class="display-6 text-success"><span id="nSafe">{{ s.safe }}</span>/<span id="nExp">{{ s.expected }}</span></div></div></div></div>
+  <div class="col-4"><div class="card stat"><div class="card-body"><div class="small text-muted">Elapsed</div><div class="display-6"><span id="mins">{{ s.minutes }}</span> min</div></div></div></div>
+</div>
+<div class="row g-3">
+  {% if s.active %}<div class="col-lg-5"><div class="card card-body">
+    <div class="video-wrap mb-2"><video id="video" autoplay playsinline muted></video><canvas id="overlay"></canvas></div>
+    <div class="d-flex gap-2"><select id="facing" class="form-select form-select-sm" style="width:auto"><option value="environment">Back camera</option><option value="user">Front camera</option></select>
+      <button class="btn btn-success btn-sm" id="btnCam"><i class="bi bi-camera"></i> Scan faces</button></div>
+    <div class="small text-muted mt-1">Point the camera at people arriving at the assembly point. Tap a name in the list to mark someone safe by hand.</div>
+  </div></div>{% endif %}
+  <div class="col-lg-{{ 4 if s.active else 6 }}"><div class="card border-danger"><div class="card-header text-danger fw-semibold">Unaccounted for</div>
+    <ul class="list-group list-group-flush" id="missing"></ul></div></div>
+  <div class="col-lg-{{ 3 if s.active else 6 }}"><div class="card"><div class="card-header text-success">Safe</div>
+    <ul class="list-group list-group-flush small" id="safe"></ul></div></div>
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if ev %}
+<script src="/static/js/camera.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id), active = {{ 'true' if s.active else 'false' }}, eid = {{ ev.id }};
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+  function show(s) {
+    $('nMissing').textContent = s.missing.length; $('nSafe').textContent = s.safe; $('nExp').textContent = s.expected; $('mins').textContent = s.minutes;
+    $('missing').innerHTML = s.missing.length ? s.missing.map(m => `<li class="list-group-item d-flex justify-content-between align-items-center">
+      <span><strong>${esc(m.name)}</strong> <span class="text-muted small">${esc(m.detail)}</span></span>
+      ${active ? `<button class="btn btn-sm btn-outline-success" data-id="${m.id}">Safe</button>` : ''}</li>`).join('')
+      : '<li class="list-group-item text-success fw-semibold">Everyone is accounted for.</li>';
+    $('safe').innerHTML = s.safe_list.map(m => `<li class="list-group-item">${esc(m.name)} <span class="text-muted">${m.at} · ${m.how}${m.expected ? '' : ' · not on list'}</span></li>`).join('') || '<li class="list-group-item text-muted">—</li>';
+  }
+  show({{ s|tojson }});
+  if (!active) return;
+  $('missing').addEventListener('click', async e => {
+    const id = e.target.dataset?.id; if (!id) return;
+    show(await (await fetch(`/api/muster/${eid}/entries/${id}/safe`, {method: 'POST'})).json());
+  });
+  setInterval(async () => { if (!cam.running) show(await (await fetch(`/api/muster/${eid}`)).json()); }, 4000);  // other devices scanning too
+  const cam = new Camera($('video')), ctx = $('overlay').getContext('2d'); let busy = false;
+  const COLORS = {safe: '#198754', unknown: '#dc3545', checking: '#ffc107'};
+  async function tick() {
+    if (!cam.running) return;
+    if (!busy) {
+      busy = true;
+      try {
+        const r = await fetch(`/api/muster/${eid}/frame`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({image: cam.capture(0.8, 1280)})});
+        const d = await r.json();
+        if (r.ok) {
+          show(d);
+          const v = cam.video, sc = 1 / (cam.scale || 1); $('overlay').width = v.videoWidth; $('overlay').height = v.videoHeight;
+          ctx.clearRect(0, 0, v.videoWidth, v.videoHeight); ctx.lineWidth = 4; ctx.font = '600 22px system-ui';
+          d.faces.forEach(f => { let [x, y, w, h] = f.bbox.map(n => n * sc); if (cam.mirrored) x = v.videoWidth - x - w;
+            ctx.strokeStyle = ctx.fillStyle = COLORS[f.state] || '#999'; ctx.strokeRect(x, y, w, h); ctx.fillText(f.label, x, Math.max(22, y - 6)); });
+        }
+      } finally { busy = false; }
+    }
+    setTimeout(tick, 250);
+  }
+  $('btnCam').onclick = async () => { try { await cam.start(1280, 720, $('facing').value); tick(); } catch (e) { alert('Camera error: ' + e.message); } };
+})();
+</script>
+{% endif %}
+{% endblock %}

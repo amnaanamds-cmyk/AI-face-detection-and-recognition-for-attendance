@@ -121,3 +121,10 @@ def ask_api(q: Question, user: User = Depends(staff), db: Session = Depends(get_
         return assistant.ask(db, user, course_scope(db, user), q.question)
     except assistant.AssistantUnavailable as exc:
         raise HTTPException(503, str(exc)) from exc
+
+
+@router.get("/recognition-health")
+def recognition_health(request: Request, user: User = Depends(admin_only), db: Session = Depends(get_db)):
+    from app.services import app_settings, faces
+    return render(request, "admin/recognition_health.html", user, rows=faces.recognition_health(db, user.org_id),
+                  adaptive=bool(app_settings.get_setting(db, user.org_id, "adaptive_gallery")))

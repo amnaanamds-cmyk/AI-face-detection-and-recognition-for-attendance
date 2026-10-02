@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="h3 mb-1"><i class="bi bi-heart-pulse"></i> Recognition health</h1>
+<p class="text-muted">How well the camera recognises each {{ t.person|lower }} (last 30 days), and what to do when it struggles.
+Self-learning is <strong>{{ 'on' if adaptive else 'off' }}</strong>{% if adaptive %}: after a very confident, liveness-checked match, a new view of the face is kept
+(at most one a week, three in total), so beards, glasses and growing up do not break recognition{% endif %}.
+Change it in <a href="/settings">System settings</a>.</p>
+<div class="card"><div class="table-responsive"><table class="table table-sm align-middle mb-0 small">
+  <thead><tr><th>{{ t.person }}</th><th>Templates</th><th>Recognised by camera</th><th>Avg. match</th><th>By hand</th><th>Advice</th></tr></thead>
+  <tbody>{% for r in rows %}
+    <tr class="{{ 'table-warning' if r.issues }}">
+      <td><a href="/students/{{ r.student.id }}">{{ r.student.name }}</a> <span class="text-muted">{{ r.student.student_code }}</span></td>
+      <td>{{ r.templates }}{% if r.learned %} <span class="badge text-bg-info" title="learned automatically">+{{ r.learned }} learned</span>{% endif %}</td>
+      <td>{{ r.face_marks }}</td><td>{{ '%.2f'|format(r.mean) if r.mean is not none else '--' }}</td><td>{{ r.manual }}</td>
+      <td>{% for i in r.issues %}<div>{{ i }}</div>{% else %}<span class="text-success">OK</span>{% endfor %}
+        {% if r.issues %}<a class="btn btn-sm btn-outline-primary mt-1" href="/students/{{ r.student.id }}/enroll">Register new photos</a>{% endif %}</td>
+    </tr>{% else %}<tr><td colspan="6" class="text-muted p-3">No {{ t.people|lower }} yet.</td></tr>{% endfor %}</tbody>
+</table></div></div>
+{% endblock %}

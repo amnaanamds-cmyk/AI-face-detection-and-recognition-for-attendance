@@ -27,7 +27,7 @@ from app.services import app_settings, faces
 from app.services.notifications import check_low_attendance
 from app.terminology import terms
 from app.vision.backends import get_backend
-from app.vision.liveness import SPOOF, LivenessChecker
+from app.vision.liveness import LIVE, SPOOF, LivenessChecker
 from app.vision.pipeline import FaceTracker, RecognitionPipeline, is_accepted
 
 log = logging.getLogger(__name__)
@@ -378,6 +378,11 @@ def _recognize(db: Session, org_id: int, tracker_key: int, liveness_required: bo
                     elif res.ok:
                         _log(db, track, "marked", session.id, "marked", r.student_id, r.confirmed_similarity, r.liveness_score)
                         track.final_state = "marked"
+                        if r.liveness == LIVE and track.embedding is not None:   # never learn from unverified faces
+                            try:
+                                faces.learn_from_sighting(db, student, track.embedding, r.confirmed_similarity)
+                            except Exception:  # noqa: BLE001 - learning is optional, marking is not
+                                log.exception("adaptive template not stored")
                     elif res.duplicate:
                         _log(db, track, "dup", session.id, "duplicate", r.student_id, r.confirmed_similarity)
                         track.final_state = "duplicate"

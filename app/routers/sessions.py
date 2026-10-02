@@ -55,7 +55,7 @@ def new_session(request: Request, course_id: int = 0, user: User = Depends(staff
 @router.post("/sessions/new")
 def create_session(request: Request, course_id: int = Form(...), day: str = Form(...), start: str = Form(...),
                    duration: int = Form(60), present_window: int = Form(10), late_window: int = Form(20),
-                   liveness: str = Form(""), start_now: str = Form(""),
+                   liveness: str = Form(""), start_now: str = Form(""), exam: str = Form(""),
                    user: User = Depends(staff), db: Session = Depends(get_db)):
     course = db.get(Course, course_id)
     if course is None or not can_manage_course(user, course):
@@ -67,7 +67,7 @@ def create_session(request: Request, course_id: int = Form(...), day: str = Form
     s = ClassSession(
         course_id=course_id, date=d, start_time=datetime.combine(d, datetime.strptime(start, "%H:%M").time()),
         duration_minutes=duration, present_window_minutes=present_window, late_window_minutes=late_window,
-        liveness_required=liveness == "on", created_by=user.id,
+        liveness_required=liveness == "on" or exam == "on", is_exam=exam == "on", created_by=user.id,
     )
     db.add(s)
     db.commit()
@@ -84,8 +84,9 @@ def session_detail(sid: int, request: Request, user: User = Depends(staff), db: 
     students = db.scalars(select(Student).join(Enrollment).where(Enrollment.course_id == s.course_id)
                           .order_by(Student.student_code)).all()
     recs = {r.student_id: r for r in s.attendance}
+    from app.services import exam
     return render(request, "sessions/detail.html", user, session=s, students=students, recs=recs,
-                  summary=att.session_summary(db, s))
+                  summary=att.session_summary(db, s), exam_alerts=exam.alerts(db, s) if s.is_exam else [])
 
 
 @router.post("/sessions/{sid}/start")
@@ -121,6 +122,10 @@ def override(sid: int, request: Request, student_id: int = Form(...), status: st
     s = _get(db, sid, user)
     if student_id not in att.enrolled_student_ids(db, s.course_id):
         raise HTTPException(400, "Student not enrolled")
+    if s.is_exam and status in ("present", "late") and not note.strip():
+        flash(request, "Exam: marking a candidate present by hand needs a reason (e.g. 'ID card checked by invigilator').",
+              "danger")
+        return RedirectResponse(f"/sessions/{sid}", status_code=303)
     att.set_status(db, s, student_id, AttendanceStatus(status), note or None)
     flash(request, "Attendance updated")
     return RedirectResponse(f"/sessions/{sid}", status_code=303)
@@ -152,3 +157,18 @@ def api_frame(sid: int, payload: dict = Body(...), user: User = Depends(staff), 
 @router.get("/api/sessions/{sid}/summary")
 def api_summary(sid: int, user: User = Depends(staff), db: Session = Depends(get_db)):
     return att.session_summary(db, _get(db, sid, user))
+
+
+@router.get("/sessions/{sid}/exam-report")
+def exam_report(sid: int, request: Request, user: User = Depends(staff), db: Session = Depends(get_db)):
+    from fastapi.responses import Response
+
+    from app.routers.mobile import public_url
+    from app.services import exam
+
+    s = _get(db, sid, user)
+    if not s.is_exam:
+        raise HTTPException(400, "Not an exam session")
+    verify = (public_url(request) or str(request.base_url).rstrip("/")) + "/verify"
+    return Response(exam.report_pdf(db, s, verify), media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="invigilation-{s.course.code}-{s.date}.pdf"'})

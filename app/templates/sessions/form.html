@@ -13,6 +13,9 @@
     <div class="col-md-6"><label class="form-label">Late if arriving within (min) — afterwards Absent</label><input class="form-control" type="number" name="late_window" value="{{ cfg.late_window_minutes }}" min="0"></div>
     <div class="col-12"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="liveness" id="lv" {{ 'checked' if cfg.liveness_enabled }}>
       <label class="form-check-label" for="lv">Require liveness detection (reject photos / screens)</label></div></div>
+    <div class="col-12"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="exam" id="exam">
+      <label class="form-check-label" for="exam"><strong>Exam</strong>: impersonation guard - liveness always on, alerts for non-candidates and
+      unregistered faces, hand-marking needs a reason, signed invigilation report</label></div></div>
   </div>
   <div class="mt-4 d-flex gap-2">
     <button class="btn btn-success" name="start_now" value="1"><i class="bi bi-play-fill"></i> Create &amp; start attendance</button>

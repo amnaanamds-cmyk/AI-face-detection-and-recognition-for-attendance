@@ -2,7 +2,7 @@
 {% from "_macros.html" import status_badge, session_state %}
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-start mb-3 gap-2">
-  <div><h1 class="h3 mb-0">{{ session.course.code }} — {{ session.course.name }} {{ session_state(session.state) }}</h1>
+  <div><h1 class="h3 mb-0">{{ session.course.code }} — {{ session.course.name }} {{ session_state(session.state) }}{% if session.is_exam %} <span class="badge text-bg-dark"><i class="bi bi-shield-check"></i> Exam</span>{% endif %}</h1>
   <div class="text-muted">{{ session.date.strftime('%A, %d %B %Y') }}, {{ session.start_time.strftime('%H:%M') }}–{{ session.end_time.strftime('%H:%M') }}
    &middot; Present ≤ {{ session.present_window_minutes }} min, Late ≤ {{ session.late_window_minutes }} min &middot; Liveness {{ 'on' if session.liveness_required else 'off' }}</div></div>
   <div class="d-flex gap-2 flex-wrap">
@@ -12,12 +12,15 @@
     {% else %}
     <form method="post" action="/sessions/{{ session.id }}/notify-parents"><button class="btn btn-outline-primary" title="Message the parents of absent students (each parent only once)"><i class="bi bi-chat-dots"></i> Message parents</button></form>
     {% endif %}
+    {% if session.is_exam %}<a class="btn btn-dark" href="/sessions/{{ session.id }}/exam-report"><i class="bi bi-patch-check"></i> Invigilation report</a>{% endif %}
     <div class="btn-group"><a class="btn btn-outline-secondary" href="/reports/session/{{ session.id }}?fmt=xlsx">Excel</a>
     <a class="btn btn-outline-secondary" href="/reports/session/{{ session.id }}?fmt=pdf">PDF</a>
     <a class="btn btn-outline-secondary" href="/reports/session/{{ session.id }}?fmt=csv">CSV</a></div>
     <form method="post" action="/sessions/{{ session.id }}/delete" onsubmit="return confirm('Delete this session and its attendance?')"><button class="btn btn-outline-danger">Delete</button></form>
   </div>
 </div>
+{% if exam_alerts %}<div class="alert alert-danger"><strong><i class="bi bi-exclamation-triangle"></i> Exam alerts</strong>
+  <ul class="mb-0 small">{% for a in exam_alerts %}<li>{{ a.created_at.strftime('%H:%M') }} - {{ a.message }}</li>{% endfor %}</ul></div>{% endif %}
 <div class="row g-3 mb-3">
   <div class="col-6 col-md-3"><div class="card stat"><div class="card-body"><div class="small text-muted">Expected</div><div class="display-6">{{ summary.expected }}</div></div></div></div>
   <div class="col-6 col-md-3"><div class="card stat"><div class="card-body"><div class="small text-muted">Present / Late</div><div class="display-6 text-success">{{ summary.counts.present }} / {{ summary.counts.late }}</div></div></div></div>

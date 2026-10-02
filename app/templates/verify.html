@@ -6,10 +6,21 @@
 {% if result %}
   {% if result.valid %}
   <div class="alert alert-success d-flex gap-3 align-items-center"><i class="bi bi-patch-check-fill fs-1"></i>
-    <div><strong class="fs-5">Genuine certificate</strong><br>Issued by {{ result.data.org }} with {{ app_name }}; its content has not been changed.</div></div>
+    <div><strong class="fs-5">Genuine {{ 'report' if result.data.kind == 'exam' else 'certificate' }}</strong><br>Issued by {{ result.data.org }} with {{ app_name }}; its content has not been changed.</div></div>
   {% else %}
   <div class="alert alert-danger d-flex gap-3 align-items-center"><i class="bi bi-x-octagon-fill fs-1"></i>
     <div><strong class="fs-5">Not valid</strong><br>{{ result.reason }}</div></div>
+  {% endif %}
+  {% if result.data and result.data.kind == 'exam' %}
+  <div class="card mb-3"><div class="card-body">
+    <div class="fs-5 fw-semibold">Exam invigilation report</div>
+    <div class="text-muted small mb-2">{{ result.data.org }} &middot; {{ result.data.exam }} &middot; {{ result.data.date }} {{ result.data.start }} &middot; issued {{ result.data.issued|replace('T', ' ') }}</div>
+    <table class="table table-sm mb-0"><tbody>
+      <tr><td>Candidates</td><td>{{ result.data.candidates }}</td></tr><tr><td>Identity verified by face</td><td>{{ result.data.face_verified }}</td></tr>
+      <tr><td>Marked by hand (with reason)</td><td>{{ result.data.by_hand }}</td></tr><tr><td>Absent</td><td>{{ result.data.absent }}</td></tr>
+      <tr><td>Alerts during the exam</td><td>{{ result.data.alerts }}</td></tr></tbody></table>
+    {% if not result.valid %}<div class="small text-danger mt-2">These figures are shown as written on the report and must not be trusted.</div>{% endif %}
+  </div></div>
   {% endif %}
   {% if result.data and result.data.groups is defined %}
   <div class="card mb-3"><div class="card-body">

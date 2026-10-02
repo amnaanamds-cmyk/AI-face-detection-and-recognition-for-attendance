@@ -203,6 +203,7 @@ class ClassSession(Base):
     present_window_minutes: Mapped[int] = mapped_column(Integer, default=10)
     late_window_minutes: Mapped[int] = mapped_column(Integer, default=20)
     liveness_required: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_exam: Mapped[bool] = mapped_column(Boolean, default=False)   # impersonation guard (app/services/exam.py)
     state: Mapped[SessionState] = mapped_column(Enum(SessionState), default=SessionState.scheduled)
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now)

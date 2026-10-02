@@ -380,6 +380,12 @@ def _recognize(db: Session, org_id: int, tracker_key: int, liveness_required: bo
                 elif settled:
                     label, state = "Unknown", "unknown"
                     track.outcome = "Face not registered"
+                    if audit_session_id and "unknown" not in track.logged:
+                        exam_sess = db.get(ClassSession, audit_session_id)
+                        if exam_sess is not None and exam_sess.is_exam:
+                            from app.services import exam
+                            exam.unregistered_face(db, exam_sess)
+                            track.outcome = "Not registered - identity check needed (invigilator alerted)"
                     _log(db, track, "unknown", audit_session_id, "unknown", None, r.similarity)
                 else:
                     label, state = "Identifying…", "checking"
@@ -412,6 +418,10 @@ def _recognize(db: Session, org_id: int, tracker_key: int, liveness_required: bo
                         track.final_state = "duplicate"
                     else:
                         track.final_state = "rejected"
+                        if session.is_exam and "not enrolled" in res.message:
+                            from app.services import exam
+                            exam.not_a_candidate(db, session, student)
+                            track.outcome = f"{student.name} is NOT a candidate of this exam - invigilator alerted"
                     events.append({"name": label, "state": track.final_state, "message": track.outcome})
                 state = track.final_state
 

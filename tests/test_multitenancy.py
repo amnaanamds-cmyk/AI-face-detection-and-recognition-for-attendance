@@ -83,7 +83,7 @@ def test_signup_and_full_isolation(client, monkeypatch):
             org_b = db.query(Organization).filter_by(name="Beta Corp").one()
             org_a = db.query(Organization).filter_by(name="Alpha College").one()
             assert db.query(OrgSetting).filter_by(org_id=org_b.id, key="match_threshold").one().value == "0.6"
-            assert db.query(OrgSetting).filter_by(org_id=org_a.id).count() == 0
+            assert db.query(OrgSetting).filter(OrgSetting.org_id == org_a.id, OrgSetting.key != "biometric_key").count() == 0
             assert org_a.plan == "trial" and org_a.trial_ends_at is not None
             assert db.query(Attendance).join(Student).filter(Student.org_id == org_a.id).count() == 0
 

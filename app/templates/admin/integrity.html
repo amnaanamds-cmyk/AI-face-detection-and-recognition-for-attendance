@@ -21,6 +21,17 @@ behind FaceAttend's back, or deleting history, is detected here.</p>
       <div class="font-monospace small text-break">#{{ r.head_seq }} {{ r.head_hash }}</div>
       <div class="small text-muted mt-1">Printed on every PDF report. If someone rebuilt the whole history, the fingerprint on old reports would no longer appear in this chain.</div>
     </div>
+    <div class="card card-body mb-3">
+      <div class="fw-semibold"><i class="bi bi-key"></i> Biometric key (revocable face data)</div>
+      <div class="small text-muted">Face templates are stored scrambled with this organization's secret key (version {{ bio.version }}).
+        They keep their accuracy here but match nothing anywhere else, and the same person in another organization gets unrelated templates.
+        If a backup or database copy may have leaked, rotate the key: every template is re-protected at once, the leaked copy becomes useless,
+        and <strong>nobody has to register again</strong>.</div>
+      <div class="small mt-2">{{ bio.templates }} templates protected{% if bio.unprotected %}, <span class="text-danger">{{ bio.unprotected }} not yet</span>{% endif %}
+        &middot; last rotation: {{ bio.rotated_at.strftime('%d %b %Y %H:%M') if bio.rotated_at else 'never' }}</div>
+      <form method="post" action="/integrity/rotate-key" class="mt-2" onsubmit="return confirm('Re-protect all face templates with a new key?')">
+        <button class="btn btn-sm btn-outline-danger"><i class="bi bi-arrow-repeat"></i> Rotate key now</button></form>
+    </div>
     <div class="card card-body">
       <div class="fw-semibold">Verifiable certificates</div>
       <div class="small text-muted">Download a signed attendance certificate from any {{ t.person|lower }}'s page. Anyone can check it at

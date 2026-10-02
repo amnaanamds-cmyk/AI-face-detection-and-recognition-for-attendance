@@ -26,6 +26,9 @@ _NEW_COLUMNS = [
     ("students", "guardian_name", "VARCHAR(120)", None),
     ("students", "guardian_phone", "VARCHAR(40)", None),
     ("students", "guardian_email", "VARCHAR(120)", None),
+    ("face_embeddings", "key_version", "INTEGER", "0"),
+    ("face_embeddings", "source", "VARCHAR(20)", "'enrolled'"),
+    ("organizations", "biometric_key_rotated_at", "DATETIME", None),
 ]
 
 

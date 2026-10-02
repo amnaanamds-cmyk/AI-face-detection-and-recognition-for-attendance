@@ -64,10 +64,11 @@ async def lifespan(_app: FastAPI):
     database.init_db()
     upgrade_database(database.engine)
     bootstrap_admin()
-    from app.services import ledger
+    from app.services import biokey, ledger
     with database.SessionLocal() as db:
         for org_id in db.scalars(select(Organization.id)).all():
             ledger.ensure_baseline(db, org_id)  # first start with the ledger: existing records = starting point
+            biokey.protect_legacy(db, org_id)   # cancelable biometrics for templates stored before it existed
     from app.services import tunnel
     if settings.edition != "saas":
         tunnel.resume_if_remembered()  # "share online" was on before the restart

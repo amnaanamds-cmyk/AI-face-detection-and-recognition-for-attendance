@@ -9,8 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.models import FaceEmbedding, Student
-from app.services import app_settings
-from app.security import decrypt_embedding, encrypt_embedding
+from app.services import app_settings, biokey
 from app.vision.backends import get_backend
 from app.vision.base import crop
 from app.vision.liveness import sharpness
@@ -45,7 +44,9 @@ def enroll_images(db: Session, student: Student, images: list[np.ndarray]) -> En
         vec = backend.embed(img, face)
         quality = float(face.score) * min(1.0, sharpness(crop(img, face.bbox)) / 100.0)
         new_vectors.append(vec)
-        db.add(FaceEmbedding(student_id=student.id, embedding=encrypt_embedding(vec), model_name=backend.name, quality=quality))
+        blob, version = biokey.protect(db, student.org_id, vec)
+        db.add(FaceEmbedding(student_id=student.id, embedding=blob, key_version=version, model_name=backend.name,
+                             quality=quality))
         accepted += 1
 
     # Identity check: the new face must not already belong to another registered student
@@ -94,15 +95,15 @@ def delete_faces(db: Session, student_id: int) -> int:
 def load_gallery(db: Session, org_id: int, exclude_student: int | None = None) -> Gallery:
     """All active face templates of ONE organization - faces never match across customers."""
     backend = get_backend()
-    q = (select(FaceEmbedding.student_id, FaceEmbedding.embedding).join(Student)
+    q = (select(FaceEmbedding.student_id, FaceEmbedding.embedding, FaceEmbedding.key_version).join(Student)
          .where(Student.org_id == org_id, Student.is_active.is_(True), FaceEmbedding.model_name == backend.name))
     if exclude_student is not None:
         q = q.where(FaceEmbedding.student_id != exclude_student)
-    rows = db.execute(q).all()
-    if not rows:
+    pairs = [(sid, biokey.unprotect(db, org_id, blob, version or 0)) for sid, blob, version in db.execute(q).all()]
+    pairs = [(sid, v) for sid, v in pairs if v is not None]
+    if not pairs:
         return Gallery()
-    vecs = np.stack([decrypt_embedding(blob) for _, blob in rows])
-    return Gallery(vecs, [sid for sid, _ in rows])
+    return Gallery(np.stack([v for _, v in pairs]), [sid for sid, _ in pairs])
 
 
 def get_gallery(db: Session, org_id: int) -> Gallery:

@@ -75,6 +75,7 @@ class Organization(Base):
     stripe_subscription_id: Mapped[str | None] = mapped_column(String(80))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+    biometric_key_rotated_at: Mapped[datetime | None] = mapped_column(DateTime)
 
 
 class User(Base):
@@ -144,6 +145,10 @@ class FaceEmbedding(Base):
     model_name: Mapped[str] = mapped_column(String(60))
     quality: Mapped[float] = mapped_column(Float, default=0.0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+    # cancelable biometrics: version of the organization's template key (0 = stored before protection)
+    key_version: Mapped[int] = mapped_column(Integer, default=0)
+    # enrolled = registration photos; adaptive = learned from a confident, live sighting (self-learning gallery)
+    source: Mapped[str] = mapped_column(String(20), default="enrolled")
 
     student: Mapped[Student] = relationship(back_populates="embeddings")
 

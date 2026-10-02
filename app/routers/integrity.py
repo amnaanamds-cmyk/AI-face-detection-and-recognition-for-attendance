@@ -23,7 +23,19 @@ def integrity(request: Request, user: User = Depends(admin_only), db: Session = 
     report = ledger.verify(db, user.org_id)
     recent = db.scalars(select(LedgerEntry).where(LedgerEntry.org_id == user.org_id)
                         .order_by(LedgerEntry.id.desc()).limit(50)).all()
-    return render(request, "admin/integrity.html", user, r=report, recent=recent, kid=certificates.key_id())
+    from app.services import biokey
+    return render(request, "admin/integrity.html", user, r=report, recent=recent, kid=certificates.key_id(),
+                  bio=biokey.status(db, user.org_id))
+
+
+@router.post("/integrity/rotate-key")
+def rotate_biometric_key(request: Request, user: User = Depends(admin_only), db: Session = Depends(get_db)):
+    from app.deps import flash
+    from app.services import biokey
+    n = biokey.rotate(db, user.org_id)
+    flash(request, f"Biometric key rotated: {n} face templates re-protected. Any copy taken before now no longer "
+                   "matches anyone - nobody needs to register again.")
+    return RedirectResponse("/integrity", status_code=303)
 
 
 @router.get("/proxy")

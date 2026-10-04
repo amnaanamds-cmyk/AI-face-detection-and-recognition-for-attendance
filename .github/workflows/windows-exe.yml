@@ -57,7 +57,7 @@ jobs:
           ./gradlew assembleRelease --no-daemon --stacktrace
           mkdir -p ../dist && cp app/build/outputs/apk/release/app-release.apk ../dist/FaceAttend.apk
           echo "version $APP_VERSION (code $APP_VERSION_CODE), signing certificate:"
-          keytool -printcert -jarfile ../dist/FaceAttend.apk | grep -E "SHA256|Owner"
+          "$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner" verify --print-certs ../dist/FaceAttend.apk | grep -E "DN|SHA-256" || true
       - name: Lint
         continue-on-error: true
         run: ./gradlew lintDebug --no-daemon

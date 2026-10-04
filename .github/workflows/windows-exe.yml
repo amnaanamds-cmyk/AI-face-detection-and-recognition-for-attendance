@@ -32,11 +32,32 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
+      - name: Version and signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then v="${{ github.ref_name }}"; v="${v#v}"; else v="0.0.${{ github.run_number }}"; fi
+          echo "APP_VERSION=$v" >> "$GITHUB_ENV"
+          echo "APP_VERSION_CODE=${{ github.run_number }}" >> "$GITHUB_ENV"
+          echo "UPDATE_REPO=${{ github.repository }}" >> "$GITHUB_ENV"
+          if [ -n "$KEYSTORE_B64" ]; then          # private key from repository secrets (recommended for selling)
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "ANDROID_KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+            echo "using the private signing key"
+          else
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret - signing with the public demo key (android/keystore)"
+          fi
       - name: Build APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon --stacktrace
           mkdir -p ../dist && cp app/build/outputs/apk/release/app-release.apk ../dist/FaceAttend.apk
+          echo "version $APP_VERSION (code $APP_VERSION_CODE), signing certificate:"
+          keytool -printcert -jarfile ../dist/FaceAttend.apk | grep -E "SHA256|Owner"
       - name: Lint
         continue-on-error: true
         run: ./gradlew lintDebug --no-daemon
@@ -45,6 +66,12 @@ jobs:
           name: FaceAttend-android
           path: dist/FaceAttend.apk
           if-no-files-found: error
+      - name: Publish APK to the GitHub release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/FaceAttend.apk
+          generate_release_notes: true
       - uses: actions/upload-artifact@v4
         if: always()
         with:

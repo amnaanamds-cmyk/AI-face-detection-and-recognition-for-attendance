@@ -76,6 +76,7 @@ class MainActivity : AppCompatActivity() {
         if (prefs.serverUrl.isEmpty()) setup.launch(Intent(this, SetupActivity::class.java))
         else if (savedInstanceState != null) web.restoreState(savedInstanceState) else loadHome()
         if (prefs.gatewayEnabled) SmsGatewayService.start(this)
+        Updater.check(this)   // at most once a day: offers a newer release from GitHub
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -220,6 +221,7 @@ class MainActivity : AppCompatActivity() {
         menu.add(0, 1, 0, R.string.menu_reload)
         menu.add(0, 2, 1, R.string.menu_server)
         menu.add(0, 3, 2, R.string.menu_gateway)
+        menu.add(0, 4, 3, "Check for updates (v${BuildConfig.VERSION_NAME})")
         return true
     }
 
@@ -228,6 +230,7 @@ class MainActivity : AppCompatActivity() {
             1 -> web.reload()
             2 -> setup.launch(Intent(this, SetupActivity::class.java))
             3 -> startActivity(Intent(this, GatewayActivity::class.java))
+            4 -> Updater.check(this, force = true)
             else -> return super.onOptionsItemSelected(item)
         }
         return true

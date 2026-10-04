@@ -38,6 +38,21 @@ members/events).
 
 ---
 
+## Download
+
+| | |
+|---|---|
+| **Android app** | **[Download FaceAttend.apk](https://github.com/amnaanamds-cmyk/AI-face-detection-and-recognition-for-attendance/releases/latest/download/FaceAttend.apk)**, or scan the QR code with the phone camera |
+| **Windows (computer that runs the system)** | **[Download FaceAttend-Setup.exe](https://github.com/amnaanamds-cmyk/AI-face-detection-and-recognition-for-attendance/releases/latest/download/FaceAttend-Setup.exe)** |
+| All versions and release notes | [Releases](https://github.com/amnaanamds-cmyk/AI-face-detection-and-recognition-for-attendance/releases) |
+
+<img src="docs/download-android-qr.png" width="180" alt="QR code: download the Android app">
+
+**Install on Android:** open the downloaded `FaceAttend.apk` → if asked, allow *Install unknown apps* for your
+browser → **Install** → open FaceAttend → **Scan QR code** shown on the computer (*Connect phones / share online*).
+The app checks for new versions by itself (menu ⋮ → *Check for updates*) and updates keep all settings.
+The computer running FaceAttend must be on for phones to work.
+
 ## 0. Desktop app (.exe) - easiest
 
 **FaceAttend-Setup.exe** installs a normal Windows program: double-click the icon and the app

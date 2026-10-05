@@ -18,7 +18,7 @@ from app import database
 from app.config import settings
 from app.deps import Forbidden, NotAuthenticated, render
 from app.models import Organization, Role, User
-from app.routers import (admin, analytics, auth, billing, courses, dashboard, imports, integrity, kiosk, legal, messages,
+from app.routers import (admin, analytics, auth, billing, courses, dashboard, imports, integrity, kiosk, legal, messages, overview,
                          muster,
                          mobile,
                          platform, reports, sessions, students, visitors)
@@ -84,7 +84,7 @@ def create_app() -> FastAPI:
                        https_only=settings.public_base_url.startswith("https://"))
     app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 
-    for r in (mobile, legal, auth, dashboard, imports, students, courses, sessions, kiosk, analytics, reports, admin, messages, integrity, visitors, muster, platform, billing):
+    for r in (mobile, legal, auth, dashboard, overview, imports, students, courses, sessions, kiosk, analytics, reports, admin, messages, integrity, visitors, muster, platform, billing):
         app.include_router(r.router)
 
     @app.exception_handler(NotAuthenticated)

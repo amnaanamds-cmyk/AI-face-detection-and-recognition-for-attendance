@@ -94,6 +94,10 @@ def settings_page(request: Request, user: User = Depends(admin_only), db: Sessio
 @router.post("/settings")
 async def save_settings(request: Request, user: User = Depends(admin_only), db: Session = Depends(get_db)):
     form = await request.form()
+    name = str(form.get("org_name", "")).strip()[:120]
+    if name and user.org is not None:
+        user.org.name = name
+        db.commit()
     try:
         for key, (_, typ, _) in app_settings.DEFAULTS.items():
             if key in app_settings.MESSAGE_KEYS:

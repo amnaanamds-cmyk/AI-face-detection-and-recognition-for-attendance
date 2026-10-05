@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 import threading
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import numpy as np
 from sqlalchemy import select
@@ -215,6 +215,9 @@ def get_or_open_today(db: Session, course: Course, when: datetime) -> ClassSessi
     return sess
 
 
+FORGOTTEN_GRACE = timedelta(hours=2)
+
+
 def sync_scheduled_sessions(db: Session, org_id: int, when: datetime | None = None) -> None:
     """Open today's sessions of scheduled groups once they start (so absentees are recorded even if nobody
     checks in) and close automatic sessions whose time is over."""
@@ -230,6 +233,13 @@ def sync_scheduled_sessions(db: Session, org_id: int, when: datetime | None = No
         Course.org_id == org_id, ClassSession.state == SessionState.active, ClassSession.created_by.is_(None))).all()
     for sess in due:
         if sess.end_time <= when:
+            close_session(db, sess)
+    # A teacher who forgets to press "Close" still gets a complete daily record: absentees are written
+    # FORGOTTEN_GRACE after the class ended.
+    forgotten = db.scalars(select(ClassSession).join(Course).where(
+        Course.org_id == org_id, ClassSession.state == SessionState.active, ClassSession.created_by.is_not(None))).all()
+    for sess in forgotten:
+        if sess.end_time + FORGOTTEN_GRACE <= when:
             close_session(db, sess)
 
 

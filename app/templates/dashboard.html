@@ -3,7 +3,8 @@
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
   <h1 class="h3 mb-0">AI Attendance Dashboard</h1>
-  <a class="btn btn-primary" href="/sessions/new"><i class="bi bi-camera-video"></i> Start attendance</a>
+  <div class="d-flex gap-2">{% if user.role.value == 'admin' %}<a class="btn btn-outline-primary" href="/overview"><i class="bi bi-building"></i> {{ 'School' if t.staff == 'Teacher' else 'Organization' }} overview</a>{% endif %}
+  <a class="btn btn-primary" href="/sessions/new"><i class="bi bi-camera-video"></i> Start attendance</a></div>
 </div>
 
 <div class="row g-3 mb-4">

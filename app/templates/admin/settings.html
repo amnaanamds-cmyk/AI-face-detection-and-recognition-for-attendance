@@ -8,6 +8,11 @@
   <div>Liveness method in use: <strong>{{ effective_mode }}</strong></div>
 </div>
 <form method="post" class="card card-body" style="max-width: 720px">
+  {% if org %}<div class="mb-3">
+    <label class="form-label" for="org_name">Name of the {{ 'school' if t.staff == 'Teacher' else 'organization' }}</label>
+    <input class="form-control" id="org_name" name="org_name" value="{{ org.name }}" maxlength="120" required>
+    <div class="form-text">Shown on the overview, reports and certificates.</div>
+  </div>{% endif %}
   {% for key, (default, typ, label) in defs.items() %}
   <div class="mb-3">
     {% if key in choices %}

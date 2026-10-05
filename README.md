@@ -53,6 +53,8 @@ browser → **Install** → open FaceAttend → **Scan QR code** shown on the co
 The app checks for new versions by itself (menu ⋮ → *Check for updates*) and updates keep all settings.
 The computer running FaceAttend must be on for phones to work.
 
+**Using it in a school** (teachers on phones, principal overview): see [docs/SCHOOL_SETUP.md](docs/SCHOOL_SETUP.md).
+
 ## 0. Desktop app (.exe) - easiest
 
 **FaceAttend-Setup.exe** installs a normal Windows program: double-click the icon and the app

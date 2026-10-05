@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pct, session_state %}
+{% block title %}{{ 'School' if t.staff == 'Teacher' else 'Organization' }} overview{% endblock %}
+{% block head %}
+<style>
+  .ov-matrix td, .ov-matrix th { white-space: nowrap; }
+  .ov-matrix th:first-child, .ov-matrix td:first-child { position: sticky; left: 0; background: var(--bs-body-bg); z-index: 1; }
+  .cell-low { background: rgba(220, 53, 69, .12) !important; }
+  .cell-ok { background: rgba(25, 135, 84, .08) !important; }
+</style>
+{% endblock %}
+{% block content %}
+{% set qs = 'period=' ~ period ~ ('&start=' ~ custom_start if custom_start else '') ~ ('&end=' ~ custom_end if custom_end else '') %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div>
+    <h1 class="h3 mb-0"><i class="bi bi-building"></i> {{ org.name if org else '' }} overview</h1>
+    <div class="text-muted small">Every {{ t.staff|lower }}'s attendance in one place &middot;
+      {% if d.start == d.end %}{{ d.end.strftime('%A %d %B %Y') }}{% else %}{{ d.start.strftime('%d %b %Y') if d.start else 'start' }} &ndash; {{ d.end.strftime('%d %b %Y') }}{% endif %}</div>
+  </div>
+  <a class="btn btn-outline-success" href="/overview.xlsx?{{ qs }}"><i class="bi bi-file-earmark-excel"></i> Download Excel</a>
+</div>
+
+<form class="d-flex flex-wrap gap-2 align-items-center mb-3" method="get">
+  <div class="btn-group" role="group">
+    {% for k, label in periods.items() %}
+    <a class="btn btn-sm {{ 'btn-primary' if period == k and not custom_start else 'btn-outline-primary' }}" href="/overview?period={{ k }}">{{ label }}</a>
+    {% endfor %}
+  </div>
+  <span class="small text-muted ms-2">or from</span>
+  <input type="date" class="form-control form-control-sm w-auto" name="start" value="{{ custom_start }}">
+  <span class="small text-muted">to</span>
+  <input type="date" class="form-control form-control-sm w-auto" name="end" value="{{ custom_end }}">
+  <button class="btn btn-sm btn-secondary">Show</button>
+</form>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3"><div class="card stat"><div class="card-body">
+    <div class="text-muted small">Attendance</div><div class="display-6">{{ pct(d.rate) }}</div>
+    <div class="small text-muted">{{ d.records }} records</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card stat"><div class="card-body">
+    <div class="text-muted small">{{ t.sessions }} held</div><div class="display-6">{{ d.held }}</div>
+    <div class="small text-muted">{{ d.subjects|length }} {{ t.groups|lower }}</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card stat"><div class="card-body">
+    <div class="text-muted small">{{ t.staffs }} who took attendance today</div>
+    <div class="display-6 {{ 'text-success' if d.teachers_taken == d.teachers_total else 'text-warning' }}">{{ d.teachers_taken }}/{{ d.teachers_total }}</div>
+    <div class="small text-muted">updates every minute</div></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card stat"><div class="card-body">
+    <div class="text-muted small">{{ t.people }} below {{ '%.0f'|format(d.threshold) }}%</div>
+    <div class="display-6 {{ 'text-danger' if d.below else 'text-success' }}">{{ d.below }}</div>
+    <div class="small text-muted">of {{ d.rated }} with records</div></div></div></div>
+</div>
+
+<ul class="nav nav-tabs" role="tablist">
+  <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-today" type="button">Today</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-teachers" type="button">{{ t.staffs }}</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-subjects" type="button">{{ 'Subjects' if t.staff == 'Teacher' else t.groups }}</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-students" type="button">{{ t.people }}</button></li>
+</ul>
+<div class="tab-content border border-top-0 rounded-bottom p-2 p-md-3 mb-4">
+
+  <div class="tab-pane fade show active" id="tab-today">
+    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+      <thead><tr><th>{{ t.staff }}</th><th>Today</th><th>{{ t.group }}</th><th>State</th><th class="text-end">Present</th></tr></thead>
+      <tbody>
+      {% for x in d.teachers if x.subjects %}
+        {% if x.today %}
+          {% for c in x.today %}
+          <tr>{% if loop.first %}<td rowspan="{{ x.today|length }}"><strong>{{ x.user.full_name }}</strong></td>
+            <td rowspan="{{ x.today|length }}">{% if x.taken_today %}<span class="badge text-bg-success"><i class="bi bi-check-lg"></i> Taken</span>{% else %}<span class="badge text-bg-warning">Not started</span>{% endif %}</td>{% endif %}
+            <td>{{ c.course.code }} <span class="text-muted small">{{ c.course.name }}</span> <span class="text-muted small">{{ c.session.start_time.strftime('%H:%M') }}</span></td>
+            <td>{{ session_state(c.session.state) }}</td>
+            <td class="text-end"><a href="/sessions/{{ c.session.id }}">{{ c.present }}/{{ c.expected }}</a></td></tr>
+          {% endfor %}
+        {% else %}
+          <tr><td><strong>{{ x.user.full_name }}</strong></td><td><span class="badge text-bg-secondary">No attendance yet</span></td>
+            <td class="text-muted small" colspan="3">{{ x.subjects|map(attribute='code')|join(', ') }}{% if x.last %} &middot; last taken {{ x.last.strftime('%d %b %H:%M') }}{% endif %}</td></tr>
+        {% endif %}
+      {% else %}
+        <tr><td colspan="5" class="text-muted">No {{ t.staffs|lower }} yet. Add them in Admin &rarr; Users &amp; roles, then give each a {{ t.group|lower }}.</td></tr>
+      {% endfor %}
+      </tbody></table></div>
+  </div>
+
+  <div class="tab-pane fade" id="tab-teachers">
+    <div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0">
+      <thead><tr><th>{{ t.staff }}</th><th>{{ t.groups }}</th><th class="text-end">{{ t.sessions }} held</th>
+        <th class="text-end">{{ t.people }}' attendance</th><th class="text-end" title="Share of present marks entered by hand instead of by face">Marked by hand</th><th>Last taken</th></tr></thead>
+      <tbody>
+      {% for x in d.teachers %}
+        <tr><td><strong>{{ x.user.full_name }}</strong> <span class="text-muted small">{{ x.user.username }}</span></td>
+          <td class="small">{% for c in x.subjects %}<a href="/courses/{{ c.id }}">{{ c.code }}</a>{{ ', ' if not loop.last }}{% else %}<span class="text-muted">none</span>{% endfor %}</td>
+          <td class="text-end">{{ x.held }}</td><td class="text-end">{{ pct(x.rate) }}</td>
+          <td class="text-end">{% if x.by_hand is none %}<span class="text-muted">--</span>{% else %}<span class="{{ 'text-danger fw-semibold' if x.by_hand > 30 else '' }}">{{ '%.0f'|format(x.by_hand) }}%</span>{% endif %}</td>
+          <td class="small">{{ x.last.strftime('%d %b %H:%M') if x.last else 'never' }}</td></tr>
+      {% else %}<tr><td colspan="6" class="text-muted">No {{ t.staffs|lower }} yet.</td></tr>{% endfor %}
+      </tbody></table></div>
+    <p class="small text-muted mt-2 mb-0">"Marked by hand" above 30% is worth a look: attendance is meant to be taken by face.</p>
+  </div>
+
+  <div class="tab-pane fade" id="tab-subjects">
+    <div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0">
+      <thead><tr><th>{{ t.group }}</th>{% if t.level %}<th>Class</th>{% endif %}<th>{{ t.staff }}</th><th class="text-end">{{ t.sessions }} held</th>
+        <th class="text-end">{{ t.people }}</th><th class="text-end">Attendance</th><th class="text-end">Below {{ '%.0f'|format(d.threshold) }}%</th></tr></thead>
+      <tbody>
+      {% for x in d.subjects %}
+        <tr><td><a href="/courses/{{ x.course.id }}">{{ x.course.code }}</a> <span class="small text-muted">{{ x.course.name }}</span></td>
+          {% if t.level %}<td>{{ x.class }}</td>{% endif %}<td>{{ x.teacher }}</td><td class="text-end">{{ x.held }}</td>
+          <td class="text-end">{{ x.students }}</td><td class="text-end">{{ pct(x.rate) }}</td>
+          <td class="text-end">{% if x.below %}<span class="badge text-bg-danger">{{ x.below }}</span>{% else %}0{% endif %}</td></tr>
+      {% else %}<tr><td colspan="7" class="text-muted">No {{ t.groups|lower }} yet.</td></tr>{% endfor %}
+      </tbody></table></div>
+  </div>
+
+  <div class="tab-pane fade" id="tab-students">
+    <div class="d-flex flex-wrap gap-2 mb-2">
+      <input class="form-control form-control-sm w-auto" id="ovSearch" placeholder="Search name or ID">
+      {% if t.level %}<select class="form-select form-select-sm w-auto" id="ovClass"><option value="">All classes</option>
+        {% for c in d.classes %}<option>{{ c }}</option>{% endfor %}</select>{% endif %}
+      <div class="form-check form-switch ms-1 align-self-center"><input class="form-check-input" type="checkbox" id="ovLow">
+        <label class="form-check-label small" for="ovLow">Only below {{ '%.0f'|format(d.threshold) }}%</label></div>
+    </div>
+    <div class="table-responsive" style="max-height: 70vh"><table class="table table-sm table-hover align-middle mb-0 ov-matrix" id="ovStudents">
+      <thead class="sticky-top"><tr><th>{{ t.person }}</th>{% if t.level %}<th>Class</th>{% endif %}<th class="text-end">Attended</th><th class="text-end">Overall</th>
+        {% for c in d.subject_cols %}<th class="text-end small" title="{{ c.name }}">{{ c.code }}</th>{% endfor %}</tr></thead>
+      <tbody>
+      {% for x in d.students %}
+        <tr data-q="{{ (x.student.name ~ ' ' ~ x.student.student_code)|lower }}" data-class="{{ x.class }}" data-low="{{ 1 if x.rate is not none and x.rate < d.threshold else 0 }}">
+          <td><a href="/students/{{ x.student.id }}">{{ x.student.name }}</a> <span class="small text-muted">{{ x.student.student_code }}</span></td>
+          {% if t.level %}<td>{{ x.class }}</td>{% endif %}
+          <td class="text-end small">{{ x.attended }}/{{ x.counted }}</td><td class="text-end">{{ pct(x.rate) }}</td>
+          {% for c in d.subject_cols %}{% set v = x.per_subject.get(c.id, 'n/a') %}
+            {% if v == 'n/a' %}<td></td>
+            {% elif v is none %}<td class="text-end text-muted small">--</td>
+            {% else %}<td class="text-end small {{ 'cell-low' if v < d.threshold else 'cell-ok' }}">{{ '%.0f'|format(v) }}%</td>{% endif %}
+          {% endfor %}</tr>
+      {% else %}<tr><td colspan="4" class="text-muted">No {{ t.people|lower }} yet.</td></tr>{% endfor %}
+      </tbody></table></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  // students: search, class and "below" filters
+  const rows = [...document.querySelectorAll('#ovStudents tbody tr[data-q]')];
+  const q = document.getElementById('ovSearch'), cls = document.getElementById('ovClass'), low = document.getElementById('ovLow');
+  function filter() {
+    const s = q.value.trim().toLowerCase(), c = cls ? cls.value : '';
+    rows.forEach(r => r.style.display = (!s || r.dataset.q.includes(s)) && (!c || r.dataset.class === c) && (!low.checked || r.dataset.low === '1') ? '' : 'none');
+  }
+  [q, cls, low].forEach(el => el && el.addEventListener('input', filter));
+
+  // remember the open tab; refresh "today" every minute so the principal sees teachers' phones report in
+  const tabKey = 'overview-tab';
+  try { const saved = sessionStorage.getItem(tabKey); if (saved) document.querySelector(`[data-bs-target="${saved}"]`)?.click(); } catch (e) {}
+  document.querySelectorAll('[data-bs-toggle="tab"]').forEach(b => b.addEventListener('shown.bs.tab', () => {
+    try { sessionStorage.setItem(tabKey, b.dataset.bsTarget); } catch (e) {}
+  }));
+  {% if d.end == d.start or period == 'today' %}
+  setInterval(() => { if (!document.hidden && !q.value && !(low && low.checked)) location.reload(); }, 60000);
+  {% endif %}
+</script>
+{% endblock %}

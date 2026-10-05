@@ -7,11 +7,20 @@
   <div class="col-6 col-md-3"><div class="card stat"><div class="card-body"><div class="small text-muted">People registered</div><div class="display-6">{{ stats.people }}</div></div></div></div>
   <div class="col-6 col-md-3"><div class="card stat"><div class="card-body"><div class="small text-muted">Monthly revenue (list price)</div><div class="display-6">${{ mrr }}</div></div></div></div>
 </div>
+{% if payments %}
+<div class="card border-warning mb-3"><div class="card-header bg-warning-subtle"><i class="bi bi-bank"></i> <strong>{{ payments|length }}</strong> payment(s) to confirm &mdash; check your bank / wallet statement first</div>
+  <div class="table-responsive"><table class="table table-sm mb-0 align-middle"><thead><tr><th>Sent</th><th>Organization</th><th>Plan</th><th class="text-end">Amount</th><th>Method</th><th>Transaction ID</th><th>Payer</th><th></th></tr></thead><tbody>
+  {% for p in payments %}<tr><td class="small">{{ p.created_at.strftime('%d %b %H:%M') }}</td><td>{{ p.org.name }}</td><td>{{ plans[p.plan].name }}, {{ p.months }} mo.</td>
+    <td class="text-end">{{ currency }} {{ '{:,}'.format(p.amount) }}</td><td>{{ methods.get(p.method, p.method) }}</td><td><code>{{ p.reference }}</code></td><td class="small">{{ p.payer }}</td>
+    <td class="d-flex gap-1"><form method="post" action="/platform/payments/{{ p.id }}"><input type="hidden" name="action" value="approve"><button class="btn btn-sm btn-success">Approve</button></form>
+      <form method="post" action="/platform/payments/{{ p.id }}" class="d-flex gap-1"><input type="hidden" name="action" value="reject"><input class="form-control form-control-sm" name="note" placeholder="reason" style="width: 9rem"><button class="btn btn-sm btn-outline-danger">Reject</button></form></td></tr>
+  {% endfor %}</tbody></table></div></div>
+{% endif %}
 <div class="card"><div class="table-responsive"><table class="table table-sm mb-0 align-middle">
   <thead><tr><th>Organization</th><th>Type</th><th>Plan</th><th>Status</th><th>People</th><th>Users</th><th>Created</th><th>Actions</th></tr></thead><tbody>
   {% for r in rows %}{% set o = r.org %}
   <tr class="{{ '' if o.is_active else 'table-secondary' }}"><td><strong>{{ o.name }}</strong><div class="small text-muted">{{ o.slug }}</div></td>
-  <td>{{ o.kind.value }}</td><td>{{ r.plan.name }}{% if o.plan == 'trial' and o.trial_ends_at %}<div class="small text-muted">ends {{ o.trial_ends_at.strftime('%d %b %Y') }}</div>{% endif %}</td>
+  <td>{{ o.institution or o.kind.value }}</td><td>{{ r.plan.name }}{% if o.plan == 'trial' and o.trial_ends_at %}<div class="small text-muted">ends {{ o.trial_ends_at.strftime('%d %b %Y') }}</div>{% elif o.paid_until %}<div class="small text-muted">paid until {{ o.paid_until.strftime('%d %b %Y') }}</div>{% endif %}</td>
   <td>{{ o.plan_status }}{% if not o.is_active %} <span class="badge text-bg-secondary">suspended</span>{% endif %}</td>
   <td>{{ r.people }}{% if r.plan.max_people %} / {{ r.plan.max_people }}{% endif %}</td><td>{{ r.users }}</td><td class="small">{{ o.created_at.strftime('%d %b %Y') }}</td>
   <td class="d-flex gap-1">

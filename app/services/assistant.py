@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Attendance, AttendanceStatus, ClassSession, Course, Enrollment, Student, User
 from app.services import analytics, forecast
-from app.terminology import terms
+from app.terminology import terms_of
 
 log = logging.getLogger(__name__)
 MODEL = "claude-opus-5-5"
@@ -167,7 +167,7 @@ def ask(db: Session, user: User, scope: list[int] | None, question: str, client=
 
     client = client or make_client()
     tools = Tools(db, user, scope)
-    t = terms(user.org.kind if user.org else None)
+    t = terms_of(user.org)
     messages = [{"role": "user", "content":
                  f"Today is {date.today().isoformat()} ({date.today():%A}). Organization: {user.org.name if user.org else ''}. "
                  f"Words used here: person = {t.person}, group = {t.group}.\n\nQuestion: {question.strip()[:1000]}"}]

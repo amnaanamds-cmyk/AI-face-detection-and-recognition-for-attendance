@@ -1,0 +1,46 @@
+# One-click hosting on Render (https://render.com): every school and college signs up at your address
+# and gets its own private account. README > "Put it online" has the button and the steps.
+#
+# Cost: web service "starter" (about US$7/month, 512 MB) is enough for a few schools; choose
+# "standard" (2 GB) for 20+ schools. PostgreSQL "basic-256mb" (about US$6/month) keeps the data.
+services:
+  - type: web
+    name: faceattend
+    runtime: docker
+    plan: starter
+    healthCheckPath: /login
+    # one process: live face tracks are kept in memory
+    dockerCommand: sh -c "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips '*'"
+    envVars:
+      - key: EDITION
+        value: saas
+      - key: APP_NAME
+        value: FaceAttend
+      - key: DATABASE_URL
+        fromDatabase:
+          name: faceattend-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: EMBEDDING_KEY            # encrypts face templates: copy it somewhere safe after the first deploy
+        generateValue: true
+      - key: CERTIFICATE_SIGNING_SEED # signs attendance certificates (no persistent disk on Render)
+        generateValue: true
+      - key: ADMIN_USERNAME           # your operator login (platform console)
+        value: operator
+      - key: ADMIN_PASSWORD
+        sync: false                   # asked during set-up
+      - key: LOCAL_PAYMENT_DETAILS    # e.g. Bank: ... | IBAN: PK.. | JazzCash: 0300-..
+        sync: false
+      - key: SUPPORT_EMAIL
+        sync: false
+      - key: LEGAL_COMPANY_NAME
+        sync: false
+      - key: LEGAL_CONTACT_EMAIL
+        sync: false
+
+databases:
+  - name: faceattend-db
+    plan: basic-256mb
+    databaseName: attendance
+    user: attendance

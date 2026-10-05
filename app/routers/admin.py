@@ -97,6 +97,8 @@ async def save_settings(request: Request, user: User = Depends(admin_only), db: 
     name = str(form.get("org_name", "")).strip()[:120]
     if name and user.org is not None:
         user.org.name = name
+        if form.get("institution") in ("school", "college"):
+            user.org.institution = str(form.get("institution"))
         db.commit()
     try:
         for key, (_, typ, _) in app_settings.DEFAULTS.items():

@@ -73,6 +73,7 @@ class MainActivity : AppCompatActivity() {
                 if (web.canGoBack()) web.goBack() else finish()
             }
         })
+        if (prefs.serverUrl.isEmpty() && BuildConfig.CLOUD_URL.isNotEmpty()) prefs.serverUrl = BuildConfig.CLOUD_URL
         if (prefs.serverUrl.isEmpty()) setup.launch(Intent(this, SetupActivity::class.java))
         else if (savedInstanceState != null) web.restoreState(savedInstanceState) else loadHome()
         if (prefs.gatewayEnabled) SmsGatewayService.start(this)

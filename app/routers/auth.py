@@ -19,7 +19,7 @@ from app.security import hash_password, verify_password
 
 router = APIRouter()
 
-KIND_LABELS = {OrgKind.school.value: "School, college or university", OrgKind.office.value: "Company or office",
+KIND_LABELS = {"school": "School (classes 1-12)", "college": "College or university", OrgKind.office.value: "Company or office",
                OrgKind.event.value: "Gym, club, training center or events"}
 
 # Brute-force protection: max 5 failed logins per username+IP in 15 minutes.
@@ -124,7 +124,8 @@ async def signup(request: Request, db: Session = Depends(get_db)):
         error = "An account with this e-mail already exists. Log in instead."
     if error:
         return render(request, "signup.html", None, kinds=KIND_LABELS, form=form, error=error, status_code=400)
-    org = create_org(db, org_name, kind)
+    org = create_org(db, org_name, "school" if kind == "college" else kind,
+                     institution=kind if kind in ("school", "college") else None)
     start_trial(org)
     user = User(username=email, email=email, full_name=full_name, password_hash=hash_password(password),
                 role=Role.admin, org_id=org.id)
@@ -134,3 +135,71 @@ async def signup(request: Request, db: Session = Depends(get_db)):
     request.session["uid"] = user.id
     flash(request, f"Welcome! Your {TRIAL_DAYS}-day free trial has started. Follow the checklist below to get going.")
     return RedirectResponse("/", status_code=303)
+
+
+# ------------------------------------------------------------------ forgotten password
+RESET_MAX_AGE = 3600   # a reset link works for one hour
+
+
+def _reset_serializer():
+    from itsdangerous import URLSafeTimedSerializer
+
+    return URLSafeTimedSerializer(settings.secret_key, salt="password-reset")
+
+
+def reset_token(user: User) -> str:
+    # the hash fragment makes the link single-use: it stops working once the password changes
+    return _reset_serializer().dumps({"u": user.id, "h": user.password_hash[-12:]})
+
+
+def _user_from_token(db: Session, token: str) -> User | None:
+    from itsdangerous import BadSignature
+
+    try:
+        data = _reset_serializer().loads(token, max_age=RESET_MAX_AGE)
+    except BadSignature:
+        return None
+    user = db.get(User, int(data.get("u", 0)))
+    if user is None or not user.is_active or user.password_hash[-12:] != data.get("h"):
+        return None
+    return user
+
+
+@router.get("/forgot")
+def forgot_page(request: Request):
+    return render(request, "forgot.html", None, sent=False)
+
+
+@router.post("/forgot")
+def forgot(request: Request, login: str = Form(...), db: Session = Depends(get_db)):
+    from app.services.notifications import send_email
+
+    login = login.strip()
+    user = db.scalar(select(User).where(or_(User.username == login, User.email == login.lower()), User.is_active.is_(True)))
+    if user is not None and user.email:
+        base = (settings.public_base_url if settings.edition == "saas" else str(request.base_url)).rstrip("/")
+        send_email(user.email, f"{settings.app_name}: reset your password",
+                   f"Hello {user.full_name},\n\nOpen this link within one hour to choose a new password:\n"
+                   f"{base}/reset?token={reset_token(user)}\n\nIf you did not ask for this, ignore this e-mail.")
+    # the same answer whether or not the account exists (no account guessing)
+    return render(request, "forgot.html", None, sent=True, email_ok=bool(settings.smtp_host))
+
+
+@router.get("/reset")
+def reset_page(request: Request, token: str = "", db: Session = Depends(get_db)):
+    return render(request, "reset.html", None, token=token, valid=_user_from_token(db, token) is not None)
+
+
+@router.post("/reset")
+def reset(request: Request, token: str = Form(...), new: str = Form(...), confirm: str = Form(...),
+          db: Session = Depends(get_db)):
+    user = _user_from_token(db, token)
+    if user is None:
+        return render(request, "reset.html", None, token=token, valid=False, status_code=400)
+    if len(new) < 8 or new != confirm:
+        return render(request, "reset.html", None, token=token, valid=True,
+                      error="The passwords must match and have at least 8 characters.", status_code=400)
+    user.password_hash = hash_password(new)
+    db.commit()
+    flash(request, "Password changed. You can log in now.")
+    return RedirectResponse("/login", status_code=303)

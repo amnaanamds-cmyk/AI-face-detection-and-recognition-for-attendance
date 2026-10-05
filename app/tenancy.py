@@ -30,6 +30,8 @@ _NEW_COLUMNS = [
     ("face_embeddings", "source", "VARCHAR(20)", "'enrolled'"),
     ("organizations", "biometric_key_rotated_at", "DATETIME", None),
     ("sessions", "is_exam", "BOOLEAN", "0"),
+    ("organizations", "institution", "VARCHAR(20)", None),
+    ("organizations", "paid_until", "DATETIME", None),
 ]
 
 

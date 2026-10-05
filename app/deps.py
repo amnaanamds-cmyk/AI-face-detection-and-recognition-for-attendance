@@ -101,11 +101,11 @@ def flash(request: Request, message: str, category: str = "success") -> None:
 
 
 def render(request: Request, name: str, user: User | None = None, status_code: int = 200, **ctx):
-    from app.terminology import terms
+    from app.terminology import terms_of
 
     flashes = request.session.pop("flash", []) if "session" in request.scope else []
     org = user.org if user is not None else None
-    ctx.setdefault("t", terms(org.kind if org else None))
+    ctx.setdefault("t", terms_of(org))
     if org is not None:
         from app.services.billing import subscription_problem
 

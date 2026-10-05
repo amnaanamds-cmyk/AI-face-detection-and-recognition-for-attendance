@@ -25,7 +25,7 @@ from app.models import (
 )
 from app.services import app_settings, faces
 from app.services.notifications import check_low_attendance
-from app.terminology import terms
+from app.terminology import terms_of
 from app.vision.backends import get_backend
 from app.vision.liveness import LIVE, SPOOF, LivenessChecker
 from app.vision.pipeline import FaceTracker, RecognitionPipeline, is_accepted
@@ -42,7 +42,7 @@ def status_for_arrival(session: ClassSession, when: datetime) -> AttendanceStatu
     if minutes <= session.late_window_minutes:
         return AttendanceStatus.late
     org = session.course.org if session.course is not None else None
-    if org is not None and terms(org.kind).check_out:
+    if org is not None and terms_of(org).check_out:
         return AttendanceStatus.late  # offices / gyms: a very late arrival is still an arrival
     return AttendanceStatus.absent
 
@@ -96,7 +96,7 @@ def mark_attendance(
     )
     if existing:
         org = student.org
-        if (org is not None and terms(org.kind).check_out and existing.marked_at is not None
+        if (org is not None and terms_of(org).check_out and existing.marked_at is not None
                 and existing.status in (AttendanceStatus.present, AttendanceStatus.late)):
             gap = float(app_settings.get_setting(db, org.id, "checkout_after_minutes"))
             if (when - existing.marked_at).total_seconds() >= gap * 60:
@@ -138,8 +138,8 @@ def mark_attendance(
     except Exception:  # noqa: BLE001 - a proxy check must never block marking
         log.exception("proxy check failed")
         db.rollback()
-    verb = "checked in" if terms(student.org.kind).check_out and student.org else status.value.title()
-    if status != AttendanceStatus.present and terms(student.org.kind).check_out:
+    verb = "checked in" if terms_of(student.org).check_out and student.org else status.value.title()
+    if status != AttendanceStatus.present and terms_of(student.org).check_out:
         verb = f"checked in ({status.value})"
     return MarkResult(True, False, f"{student.name}: {verb} at {when:%H:%M}", rec)
 

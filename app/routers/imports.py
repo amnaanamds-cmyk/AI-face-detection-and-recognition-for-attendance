@@ -57,3 +57,33 @@ async def import_faces(request: Request, file: UploadFile = File(...), user: Use
     except Exception as exc:
         result = {"kind": "faces", "students": 0, "templates": 0, "messages": [f"could not read ZIP: {exc}"]}
     return render(request, "students/import.html", user, result=result)
+
+
+# ------------------------------------------------------------------ teachers + subjects in one sheet
+@router.get("/setup/staff")
+def staff_page(request: Request, user: User = Depends(admin_only)):
+    return render(request, "admin/staff_import.html", user)
+
+
+@router.get("/setup/staff/template.csv")
+def staff_template(user: User = Depends(admin_only)):
+    from app.services.staff_import import TEMPLATE_CSV as STAFF_CSV
+
+    return Response(STAFF_CSV.encode("utf-8-sig"), media_type="text/csv",
+                    headers={"Content-Disposition": 'attachment; filename="teachers_and_subjects_template.csv"'})
+
+
+@router.post("/setup/staff")
+async def import_staff(request: Request, file: UploadFile = File(...), user: User = Depends(admin_only),
+                       db: Session = Depends(get_db)):
+    from app.services.staff_import import StaffReport, import_staff as run
+
+    try:
+        rep = run(db, user.org, importer.read_table(file.filename or "", await file.read()))
+    except Exception as exc:  # malformed file -> show the reason instead of a 500
+        db.rollback()
+        rep = StaffReport(errors=[f"could not read file: {exc}"])
+    from app.config import settings
+
+    site = settings.public_base_url if settings.edition == "saas" else str(request.base_url)
+    return render(request, "admin/staff_import.html", user, rep=rep, site=site.rstrip("/"))

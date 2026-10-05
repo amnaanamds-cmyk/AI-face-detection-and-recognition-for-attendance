@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Forgot password - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center mt-4"><div class="col-sm-10 col-md-6 col-lg-4">
+  <div class="card shadow-sm"><div class="card-body p-4">
+    <h1 class="h4 mb-3">Forgot your password?</h1>
+    {% if sent %}
+      <div class="alert alert-success small">If an account with an e-mail address matches, a link to choose a new password has been sent. It works for one hour.</div>
+      {% if not email_ok %}<div class="alert alert-warning small">E-mail is not set up on this server. Ask your administrator or principal to reset your password (Admin &rarr; Users &amp; roles).</div>{% endif %}
+    {% else %}
+      <p class="small text-muted">Enter your username or e-mail. Teachers and students without an e-mail address: ask your administrator to reset it.</p>
+      <form method="post" action="/forgot">
+        <input class="form-control mb-3" name="login" required autofocus placeholder="Username or e-mail">
+        <button class="btn btn-primary w-100">Send reset link</button>
+      </form>
+    {% endif %}
+    <div class="text-center mt-3 small"><a href="/login">Back to login</a></div>
+  </div></div>
+</div></div>
+{% endblock %}

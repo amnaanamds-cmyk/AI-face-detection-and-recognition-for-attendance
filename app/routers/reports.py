@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.terminology import terms
+from app.terminology import terms_of
 from app.deps import can_manage_course, course_scope, render, staff
 from app.models import ClassSession, Course, User
 from app.services import reports
@@ -55,7 +55,7 @@ def reports_page(request: Request, user: User = Depends(staff), db: Session = De
 def daily(request: Request, day: str = "", course_id: int = 0, fmt: str = "html",
           user: User = Depends(staff), db: Session = Depends(get_db)):
     d = date.fromisoformat(day) if day else date.today()
-    rep = reports.daily_report(db, d, _scope(db, user, course_id), terms(user.org.kind))
+    rep = reports.daily_report(db, d, _scope(db, user, course_id), terms_of(user.org))
     return _respond(request, user, rep, fmt, f"attendance_daily_{d.isoformat()}")
 
 
@@ -63,7 +63,7 @@ def daily(request: Request, day: str = "", course_id: int = 0, fmt: str = "html"
 def monthly(request: Request, month: str = "", course_id: int = 0, fmt: str = "html",
             user: User = Depends(staff), db: Session = Depends(get_db)):
     y, m = (int(x) for x in (month or date.today().strftime("%Y-%m")).split("-"))
-    rep = reports.monthly_report(db, y, m, _scope(db, user, course_id), terms(user.org.kind))
+    rep = reports.monthly_report(db, y, m, _scope(db, user, course_id), terms_of(user.org))
     return _respond(request, user, rep, fmt, f"attendance_monthly_{y}-{m:02d}")
 
 
@@ -73,4 +73,4 @@ def session_report(sid: int, request: Request, fmt: str = "html", user: User = D
     s = db.get(ClassSession, sid)
     if s is None or not can_manage_course(user, s.course):
         raise HTTPException(404, "Session not found")
-    return _respond(request, user, reports.session_report(db, s, terms(user.org.kind)), fmt, f"attendance_session_{sid}")
+    return _respond(request, user, reports.session_report(db, s, terms_of(user.org)), fmt, f"attendance_session_{sid}")

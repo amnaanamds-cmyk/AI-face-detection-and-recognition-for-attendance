@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.terminology import terms
+from app.terminology import terms_of
 from app.deps import admin_only, can_manage_course, course_scope, flash, get_course, get_student, render, staff
 from app.models import ClassSession, Course, Enrollment, Role, Student, User
 from app.services import analytics
@@ -16,7 +16,7 @@ router = APIRouter()
 
 
 def _t(user):
-    return terms(user.org.kind)
+    return terms_of(user.org)
 
 
 def _teachers(db: Session, org_id: int):
@@ -70,7 +70,8 @@ def create_course(request: Request, code: str = Form(...), name: str = Form(...)
 
 def _enroll_matching(db: Session, c: Course) -> int:
     have = set(db.scalars(select(Enrollment.student_id).where(Enrollment.course_id == c.id)).all())
-    students = db.scalars(select(Student).where(Student.org_id == c.org_id, Student.department == c.department,
+    same_dept = Student.department == c.department if c.department else True   # no department = whole class
+    students = db.scalars(select(Student).where(Student.org_id == c.org_id, same_dept,
                                                 Student.semester == c.semester,
                                                 Student.section == c.section, Student.is_active.is_(True))).all()
     n = 0

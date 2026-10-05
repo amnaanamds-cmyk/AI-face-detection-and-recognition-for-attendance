@@ -37,6 +37,11 @@ def _b64d(s: str) -> bytes:
 
 
 def signing_key() -> Ed25519PrivateKey:
+    import os
+
+    seed = os.environ.get("CERTIFICATE_SIGNING_SEED", "")
+    if seed:   # hosts without a persistent disk (Render, Heroku): the key comes from the environment
+        return Ed25519PrivateKey.from_private_bytes(hashlib.sha256(seed.encode()).digest())
     if KEY_FILE.exists():
         return serialization.load_pem_private_key(KEY_FILE.read_bytes(), password=None)
     key = Ed25519PrivateKey.generate()

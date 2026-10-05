@@ -44,6 +44,22 @@ PRESETS: dict[OrgKind, Terms] = {
 }
 
 
+# Schools (classes 1-12) say subject / class / period; colleges and universities keep course / semester.
+SCHOOL_WORDS = Terms("Student", "Students", "Roll No.", "Subject", "Subjects", "Period", "Periods",
+                     "Teacher", "Teachers", "Class", "Section", "Wing", False,
+                     "Put a camera at the classroom door or let teachers use their phones.")
+INSTITUTIONS = {"school": "School (classes 1-12)", "college": "College or university"}
+
+
+def terms_of(org) -> Terms:
+    """Words for an organization (None = default school wording)."""
+    if org is None:
+        return terms(None)
+    if org.kind == OrgKind.school and getattr(org, "institution", None) == "school":
+        return SCHOOL_WORDS
+    return terms(org.kind)
+
+
 def terms(kind: OrgKind | str | None) -> Terms:
     if kind is None:
         return PRESETS[OrgKind.school]

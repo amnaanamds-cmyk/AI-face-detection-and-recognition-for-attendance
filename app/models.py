@@ -76,6 +76,9 @@ class Organization(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
     biometric_key_rotated_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # school (classes 1-12: subjects, periods) | college (courses, semesters); None = original wording
+    institution: Mapped[str | None] = mapped_column(String(20))
+    paid_until: Mapped[datetime | None] = mapped_column(DateTime)   # local payments (bank / JazzCash / Easypaisa)
 
 
 class User(Base):
@@ -407,3 +410,25 @@ class OrgSetting(Base):
     org_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
     key: Mapped[str] = mapped_column(String(60))
     value: Mapped[str] = mapped_column(Text)
+
+
+class ManualPayment(Base):
+    """A payment made outside the card system (bank transfer, JazzCash, Easypaisa), confirmed by the operator."""
+
+    __tablename__ = "manual_payments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    plan: Mapped[str] = mapped_column(String(30))
+    months: Mapped[int] = mapped_column(Integer, default=1)
+    amount: Mapped[int] = mapped_column(Integer)                     # in the local currency (PKR)
+    method: Mapped[str] = mapped_column(String(20))                  # bank | jazzcash | easypaisa
+    reference: Mapped[str] = mapped_column(String(80))               # transaction id / receipt number
+    payer: Mapped[str] = mapped_column(String(120), default="")
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)  # pending | approved | rejected
+    note: Mapped[str | None] = mapped_column(String(255))
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+    org: Mapped[Organization] = relationship()

@@ -119,9 +119,14 @@ class Settings:
     min_enrollment_images: int = field(default_factory=lambda: _env_int("MIN_ENROLLMENT_IMAGES", 3))
 
     # --- Billing (SaaS edition, Stripe) -----------------------------------
-    public_base_url: str = field(default_factory=lambda: _env("PUBLIC_BASE_URL", "http://127.0.0.1:8000"))
+    public_base_url: str = field(default_factory=lambda: _env("PUBLIC_BASE_URL", _env("RENDER_EXTERNAL_URL", "http://127.0.0.1:8000")))
     stripe_secret_key: str = field(default_factory=lambda: _env("STRIPE_SECRET_KEY", ""))
     stripe_webhook_secret: str = field(default_factory=lambda: _env("STRIPE_WEBHOOK_SECRET", ""))
+
+    # --- Local payments (bank transfer, JazzCash, Easypaisa; confirmed by hand in the platform console) ---
+    # e.g. "Bank: Meezan Bank | Account title: FaceAttend | IBAN: PK00MEZN0000000000000000 | JazzCash: 0300-0000000"
+    local_payment_details: str = field(default_factory=lambda: _env("LOCAL_PAYMENT_DETAILS", ""))
+    local_currency: str = field(default_factory=lambda: _env("LOCAL_CURRENCY", "PKR"))
 
     # --- Legal pages (shown in /legal/*; have them reviewed by a lawyer) ---
     legal_company: str = field(default_factory=lambda: _env("LEGAL_COMPANY_NAME", "[Your company name]"))

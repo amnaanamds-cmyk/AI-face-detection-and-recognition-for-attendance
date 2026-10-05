@@ -12,7 +12,7 @@ from app.database import get_db
 from app.config import settings
 from app.deps import NotAuthenticated, course_scope, current_user, render
 from app.models import Attendance, Notification, Role, User
-from app.services import analytics
+from app.services import analytics, onboarding
 from app.services.forecast import at_risk, student_forecasts
 from app.services.billing import PLANS, TRIAL_DAYS
 from app.services.privacy import apply_retention, export_person
@@ -36,6 +36,7 @@ def home(request: Request, db: Session = Depends(get_db)):
     except NotAuthenticated:
         if settings.public_signup:  # SaaS: visitors see the product page, not a login box
             return render(request, "landing.html", None, plans=[p for k, p in PLANS.items() if k not in ("trial", "selfhosted")],
+                          local_currency=settings.local_currency if settings.local_payment_details else "",
                           trial_days=TRIAL_DAYS)
         raise
     if user.role == Role.student:
@@ -48,7 +49,10 @@ def home(request: Request, db: Session = Depends(get_db)):
     if scope is not None:
         nq = nq.where(Notification.course_id.in_(scope))
     alerts = db.scalars(nq.order_by(Notification.created_at.desc()).limit(5)).all()
-    return render(request, "dashboard.html", user, d=data, alerts=alerts,
+    setup = None
+    if user.role == Role.admin and onboarding.visible(db, user.org):
+        setup = onboarding.steps(db, user.org)
+    return render(request, "dashboard.html", user, d=data, alerts=alerts, setup=setup,
                   trend=analytics.daily_trend(db, 14, scope), risky=at_risk(db, user.org_id, scope, limit=6))
 
 
@@ -76,3 +80,10 @@ def my_data(user: User = Depends(current_user), db: Session = Depends(get_db)):
     body = json.dumps(export_person(db, user.student), indent=2, ensure_ascii=False)
     return Response(body, media_type="application/json",
                     headers={"Content-Disposition": 'attachment; filename="my_attendance_data.json"'})
+
+
+@router.post("/setup/dismiss")
+def dismiss_setup(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    if user.role == Role.admin:
+        onboarding.dismiss(db, user.org)
+    return RedirectResponse("/", status_code=303)

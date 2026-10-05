@@ -11,8 +11,8 @@ from app.config import settings
 from app.database import get_db
 from app.deps import admin_only, flash, render, superadmin
 from app.models import User
-from app.services import stripe_billing
-from app.services.billing import PLANS, TRIAL_DAYS, people_count, plan_of, subscription_problem
+from app.services import local_payments, stripe_billing
+from app.services.billing import MONTH_CHOICES, PLANS, TRIAL_DAYS, days_left, people_count, plan_of, subscription_problem
 from app.services.license import LicenseError, current_license, install_license
 
 log = logging.getLogger(__name__)
@@ -26,7 +26,25 @@ def billing_page(request: Request, paid: int = 0, user: User = Depends(admin_onl
     org = user.org
     return render(request, "billing.html", user, plan=plan_of(org), plans=PLANS, used=people_count(db, org.id),
                   problem=subscription_problem(org), stripe=stripe_billing.configured(),
-                  license=current_license(), trial_days=TRIAL_DAYS, edition=settings.edition)
+                  license=current_license(), trial_days=TRIAL_DAYS, edition=settings.edition,
+                  local=local_payments.enabled(), local_details=settings.local_payment_details,
+                  currency=settings.local_currency, methods=local_payments.METHODS, month_choices=MONTH_CHOICES,
+                  payments=local_payments.history(db, org.id), days_left=days_left(org))
+
+
+@router.post("/billing/local")
+def local_payment(request: Request, plan: str = Form(...), months: int = Form(1), method: str = Form(...),
+                  reference: str = Form(...), payer: str = Form(""), user: User = Depends(admin_only),
+                  db: Session = Depends(get_db)):
+    if not local_payments.enabled():
+        raise HTTPException(404)
+    try:
+        p = local_payments.submit(db, user.org, user, plan, months, method, reference, payer)
+        flash(request, f"Thank you! Payment {p.reference} ({settings.local_currency} {p.amount:,}) was sent for "
+                       "confirmation. Your plan is activated as soon as it is checked, usually within one working day.")
+    except local_payments.PaymentError as exc:
+        flash(request, f"Not sent: {exc}", "danger")
+    return RedirectResponse("/billing", status_code=303)
 
 
 @router.post("/billing/checkout")

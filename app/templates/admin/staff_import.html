@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ t.staffs }} and {{ t.groups|lower }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-1 d-print-none">{{ t.staffs }} and {{ t.groups|lower }} from one sheet</h1>
+<p class="text-muted d-print-none">One row per {{ t.group|lower }}. New {{ t.staffs|lower }} get a login with a password you can print and hand out;
+{{ t.people|lower }} of the same {{ t.level|lower or 'group' }} and {{ t.subgroup|lower or 'section' }} are enrolled automatically.</p>
+
+{% if rep %}
+<div class="alert alert-{{ 'warning' if rep.errors else 'success' }} d-print-none">
+  <strong>{{ rep.subjects_created }}</strong> {{ t.groups|lower }} created, <strong>{{ rep.subjects_updated }}</strong> updated,
+  <strong>{{ rep.teachers|length }}</strong> new {{ t.staffs|lower }}, {{ rep.reused_teachers }} existing, {{ rep.enrolled }} enrolment(s).
+  {% if rep.errors %}<ul class="mb-0 mt-2 small">{% for m in rep.errors %}<li>{{ m }}</li>{% endfor %}</ul>{% endif %}
+</div>
+{% if rep.teachers %}
+<div class="card mb-4"><div class="card-header d-flex justify-content-between align-items-center">
+  <span><i class="bi bi-key"></i> New logins &mdash; <strong>shown only once</strong>, print or save them now</span>
+  <button class="btn btn-sm btn-outline-secondary d-print-none" onclick="window.print()"><i class="bi bi-printer"></i> Print</button></div>
+  <div class="table-responsive"><table class="table table-sm mb-0 align-middle">
+    <thead><tr><th>{{ t.staff }}</th><th>Username</th><th>Password</th><th>App / website</th></tr></thead>
+    <tbody>{% for x in rep.teachers %}<tr><td>{{ x.name }}</td><td><code>{{ x.username }}</code></td><td><code>{{ x.password }}</code></td>
+      <td class="small">{{ site }}</td></tr>{% endfor %}</tbody></table></div>
+  <div class="card-footer small text-muted">Each {{ t.staff|lower }} installs the FaceAttend app, connects to the address above and logs in. They can change the password under their name &rarr; Change password.</div>
+</div>
+{% endif %}
+{% endif %}
+
+<div class="card d-print-none" style="max-width: 760px"><div class="card-body">
+  <p class="small mb-2">Columns (any order): <strong>Subject code, Subject</strong>, Class, Section, Teacher, Teacher username, Teacher email, Department.
+    Existing {{ t.groups|lower }} with the same code are updated. <a href="/setup/staff/template.csv">Download the template</a></p>
+  <form method="post" action="/setup/staff" enctype="multipart/form-data">
+    <input class="form-control mb-3" type="file" name="file" accept=".csv,.xlsx" required>
+    <button class="btn btn-primary"><i class="bi bi-upload"></i> Import</button>
+    <a class="btn btn-link" href="/students/import">Next: import {{ t.people|lower }} &rarr;</a>
+  </form>
+</div></div>
+{% endblock %}

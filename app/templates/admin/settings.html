@@ -12,7 +12,13 @@
     <label class="form-label" for="org_name">Name of the {{ 'school' if t.staff == 'Teacher' else 'organization' }}</label>
     <input class="form-control" id="org_name" name="org_name" value="{{ org.name }}" maxlength="120" required>
     <div class="form-text">Shown on the overview, reports and certificates.</div>
-  </div>{% endif %}
+  </div>
+  {% if org.kind.value == 'school' %}<div class="mb-3">
+    <label class="form-label" for="institution">Type</label>
+    <select class="form-select" id="institution" name="institution">
+      <option value="school" {{ 'selected' if org.institution == 'school' }}>School (classes 1-12): subjects, classes, periods</option>
+      <option value="college" {{ 'selected' if org.institution != 'school' }}>College or university: courses, semesters</option>
+    </select></div>{% endif %}{% endif %}
   {% for key, (default, typ, label) in defs.items() %}
   <div class="mb-3">
     {% if key in choices %}

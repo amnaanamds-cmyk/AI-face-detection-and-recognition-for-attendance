@@ -15,6 +15,8 @@ android {
         versionCode = (System.getenv("APP_VERSION_CODE") ?: "1").toInt()
         versionName = System.getenv("APP_VERSION") ?: "1.0.0"
         // the in-app updater checks this repository's latest GitHub release
+        // hosted service: the app opens it directly, no QR code needed (empty = ask for the school's own server)
+        buildConfigField("String", "CLOUD_URL", "\"${(System.getenv("FACEATTEND_CLOUD_URL") ?: "").trimEnd('/')}\"")
         buildConfigField("String", "UPDATE_REPO", "\"${System.getenv("UPDATE_REPO") ?: "amnaanamds-cmyk/AI-face-detection-and-recognition-for-attendance"}\"")
     }
 

@@ -24,7 +24,8 @@ COLUMN_ALIASES = {
     "name": "name", "studentname": "name", "fullname": "name",
     "rollno": "roll_number", "rollnumber": "roll_number", "roll": "roll_number",
     "department": "department", "dept": "department", "program": "department", "programme": "department",
-    "semester": "semester", "sem": "semester",
+    "semester": "semester", "sem": "semester", "class": "semester", "grade": "semester", "classno": "semester",
+    "admissionno": "student_code", "admissionnumber": "student_code", "grno": "student_code",
     "section": "section", "sec": "section",
     "email": "email", "emailaddress": "email",
     "phone": "phone", "contact": "phone", "mobile": "phone", "contactno": "phone",
@@ -67,6 +68,18 @@ def read_table(filename: str, data: bytes) -> list[dict[str, str]]:
     return [{k: (v or "").strip() for k, v in row.items() if k} for row in csv.DictReader(io.StringIO(text), dialect=dialect)]
 
 
+def class_number(v: str) -> int:
+    """'7', '7.0', 'Class 9', 'IX'... -> the number (ValueError if there is none)."""
+    m = re.search(r"\d+", str(v))
+    if m:
+        return int(m.group())
+    roman = {"i": 1, "ii": 2, "iii": 3, "iv": 4, "v": 5, "vi": 6, "vii": 7, "viii": 8, "ix": 9, "x": 10, "xi": 11, "xii": 12}
+    word = str(v).strip().lower().split()[-1] if str(v).strip() else ""
+    if word in roman:
+        return roman[word]
+    raise ValueError(v)
+
+
 def _truthy(v: str) -> bool:
     return str(v).strip().lower() in {"1", "yes", "y", "true", "x", "✓"}
 
@@ -95,7 +108,7 @@ def import_students(db: Session, org_id: int, rows: list[dict[str, str]], *, def
             rep.errors.append(f"row {line}: missing Student ID or name - skipped")
             continue
         try:
-            semester = int(float(data["semester"])) if data.get("semester") else None
+            semester = class_number(data["semester"]) if data.get("semester") else None
         except ValueError:
             rep.errors.append(f"row {line}: invalid semester '{data['semester']}' - skipped")
             continue
@@ -131,7 +144,8 @@ def import_students(db: Session, org_id: int, rows: list[dict[str, str]], *, def
         if auto_enroll:
             have = {e.course_id for e in db.scalars(select(Enrollment).where(Enrollment.student_id == st.id))}
             for c in courses:
-                if (c.department, c.semester, c.section) == (st.department, st.semester, st.section) and c.id not in have:
+                if (c.department in ("", st.department) and (c.semester, c.section) == (st.semester, st.section)
+                        and c.id not in have):
                     db.add(Enrollment(student_id=st.id, course_id=c.id))
                     rep.enrolled_courses += 1
     db.commit()

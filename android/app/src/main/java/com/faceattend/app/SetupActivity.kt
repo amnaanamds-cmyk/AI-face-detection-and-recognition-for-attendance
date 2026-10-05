@@ -48,6 +48,13 @@ class SetupActivity : AppCompatActivity() {
         }
         root.addView(TextView(this).apply { text = getString(R.string.setup_title); textSize = 22f })
         root.addView(TextView(this).apply { text = getString(R.string.setup_intro); setPadding(0, pad / 2, 0, pad) })
+        if (BuildConfig.CLOUD_URL.isNotEmpty()) {     // hosted service: one tap, then log in with the school account
+            root.addView(Button(this).apply {
+                text = "Use FaceAttend online (school account)"
+                setOnClickListener { check(BuildConfig.CLOUD_URL) }
+            })
+            root.addView(TextView(this).apply { text = "or your school's own server:"; setPadding(0, pad, 0, pad / 2) })
+        }
         root.addView(Button(this).apply {
             text = getString(R.string.scan_qr)
             setOnClickListener {

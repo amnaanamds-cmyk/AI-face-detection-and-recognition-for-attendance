@@ -4,7 +4,8 @@
 {% if problem %}<div class="alert alert-danger">{{ problem }}</div>{% endif %}
 <div class="row g-3 mb-4">
   <div class="col-md-4"><div class="card stat"><div class="card-body"><div class="small text-muted">Current plan</div><div class="h3 mb-0">{{ plan.name }}</div>
-    {% if edition == 'saas' %}<div class="small text-muted">status: {{ org.plan_status }}{% if org.plan == 'trial' and org.trial_ends_at %} · trial ends {{ org.trial_ends_at.strftime('%d %b %Y') }}{% endif %}</div>{% endif %}</div></div></div>
+    {% if edition == 'saas' %}<div class="small text-muted">status: {{ org.plan_status }}{% if org.plan == 'trial' and org.trial_ends_at %} · trial ends {{ org.trial_ends_at.strftime('%d %b %Y') }}{% elif org.paid_until and not org.stripe_subscription_id %} · paid until {{ org.paid_until.strftime('%d %b %Y') }}{% endif %}</div>
+    {% if days_left is not none and 0 <= days_left <= 7 %}<div class="small text-danger fw-semibold mt-1">{{ days_left }} day(s) left</div>{% endif %}{% endif %}</div></div></div>
   <div class="col-md-4"><div class="card stat"><div class="card-body"><div class="small text-muted">{{ t.people }} registered</div>
     <div class="h3 mb-0">{{ used }}{% if plan.max_people %} <span class="text-muted fs-6">/ {{ plan.max_people }}</span>{% endif %}</div>
     {% if plan.max_people %}<div class="progress mt-2" style="height:6px"><div class="progress-bar {{ 'bg-danger' if used >= plan.max_people else '' }}" style="width: {{ [100, (100 * used / plan.max_people)|round]|min }}%"></div></div>{% endif %}</div></div></div>
@@ -15,16 +16,58 @@
   {% for key in ['starter', 'pro', 'business'] %}{% set p = plans[key] %}
   <div class="col-md-4"><div class="card h-100 {{ 'border-primary' if org.plan == key }}"><div class="card-body d-flex flex-column">
     <h2 class="h5">{{ p.name }}</h2>
-    <div class="display-6 mb-1">${{ p.price_month_usd }}<span class="fs-6 text-muted">/month</span></div>
+    {% if local %}<div class="display-6 mb-0">{{ currency }} {{ '{:,}'.format(p.price_month_local) }}<span class="fs-6 text-muted">/month</span></div>
+    <div class="small text-muted mb-1">or ${{ p.price_month_usd }}/month by card &middot; a year costs 10 months</div>
+    {% else %}<div class="display-6 mb-1">${{ p.price_month_usd }}<span class="fs-6 text-muted">/month</span></div>{% endif %}
     <div class="text-muted mb-3">up to {{ p.max_people }} {{ t.people|lower }}</div>
     <ul class="small ps-3 mb-4"><li>unlimited {{ t.groups|lower }}, {{ t.sessions|lower }} and users</li><li>face recognition + liveness</li><li>web &amp; mobile app, kiosk</li><li>reports and analytics</li></ul>
     <div class="mt-auto">{% if org.plan == key and org.plan_status == 'active' %}<button class="btn btn-outline-primary w-100" disabled>Current plan</button>
-    {% else %}<form method="post" action="/billing/checkout"><input type="hidden" name="plan" value="{{ key }}"><button class="btn btn-primary w-100" {{ 'disabled' if not stripe }}>Choose {{ p.name }}</button></form>{% endif %}</div>
+    {% elif stripe %}<form method="post" action="/billing/checkout"><input type="hidden" name="plan" value="{{ key }}"><button class="btn btn-primary w-100">Pay by card</button></form>
+    {% elif not local %}<button class="btn btn-primary w-100" disabled>Choose {{ p.name }}</button>{% endif %}
+    {% if local %}<a class="btn btn-outline-primary w-100 mt-2" href="#pay-local" onclick="document.getElementById('lp-plan').value='{{ key }}'">Pay by bank / JazzCash / Easypaisa</a>{% endif %}</div>
   </div></div></div>
   {% endfor %}
 </div>
 {% if org.stripe_customer_id %}<form method="post" action="/billing/portal" class="mt-3"><button class="btn btn-outline-secondary"><i class="bi bi-receipt"></i> Invoices, payment method, cancel</button></form>{% endif %}
-{% if not stripe %}<p class="small text-muted mt-3">Online payment is not configured on this server (operator: set STRIPE_SECRET_KEY and the STRIPE_PRICE_* variables).</p>{% endif %}
+{% if local %}
+<div class="row g-3 mt-2" id="pay-local">
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header"><i class="bi bi-bank"></i> Pay by bank transfer, JazzCash or Easypaisa</div><div class="card-body">
+    <ol class="small ps-3">
+      <li>Send the amount for your plan to:
+        <div class="border rounded p-2 my-2 bg-body-tertiary font-monospace small">{% for part in local_details.split('|') %}<div>{{ part.strip() }}</div>{% endfor %}</div></li>
+      <li>Enter the transaction ID from your bank or wallet SMS below.</li>
+      <li>Your plan is activated as soon as the payment is confirmed, usually within one working day.</li>
+    </ol>
+    <form method="post" action="/billing/local" class="row g-2">
+      <div class="col-sm-6"><label class="form-label small mb-0">Plan</label><select class="form-select" name="plan" id="lp-plan" required>
+        {% for key in ['starter', 'pro', 'business'] %}<option value="{{ key }}" {{ 'selected' if org.plan == key }}>{{ plans[key].name }}</option>{% endfor %}</select></div>
+      <div class="col-sm-6"><label class="form-label small mb-0">Period</label><select class="form-select" name="months" id="lp-months">
+        {% for m, charged in month_choices.items() %}<option value="{{ m }}">{{ m }} month{{ 's' if m > 1 }}{% if charged < m %} (pay {{ charged }}){% endif %}</option>{% endfor %}</select></div>
+      <div class="col-12 small">Amount: <strong id="lp-amount"></strong></div>
+      <div class="col-sm-6"><label class="form-label small mb-0">Paid with</label><select class="form-select" name="method" required>
+        {% for k, label in methods.items() %}<option value="{{ k }}">{{ label }}</option>{% endfor %}</select></div>
+      <div class="col-sm-6"><label class="form-label small mb-0">Transaction ID</label><input class="form-control" name="reference" required minlength="4" maxlength="80"></div>
+      <div class="col-12"><label class="form-label small mb-0">Paid by (name on the account, optional)</label><input class="form-control" name="payer" maxlength="120"></div>
+      <div class="col-12"><button class="btn btn-primary">Send for confirmation</button></div>
+    </form>
+  </div></div></div>
+  <div class="col-lg-6"><div class="card h-100"><div class="card-header">Your payments</div>
+    <div class="table-responsive"><table class="table table-sm mb-0 align-middle"><thead><tr><th>Date</th><th>Plan</th><th class="text-end">Amount</th><th>ID</th><th>Status</th></tr></thead><tbody>
+    {% for p in payments %}<tr><td class="small">{{ p.created_at.strftime('%d %b %Y') }}</td><td class="small">{{ plans[p.plan].name }}, {{ p.months }} mo.</td>
+      <td class="text-end small">{{ currency }} {{ '{:,}'.format(p.amount) }}</td><td class="small"><code>{{ p.reference }}</code></td>
+      <td><span class="badge text-bg-{{ {'pending': 'warning', 'approved': 'success', 'rejected': 'danger'}[p.status] }}">{{ p.status }}</span>{% if p.note %}<div class="small text-muted">{{ p.note }}</div>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="5" class="text-muted small">No payments yet.</td></tr>{% endfor %}</tbody></table></div></div></div>
+</div>
+<script>
+  const prices = {{ {'starter': plans.starter.price_month_local, 'pro': plans.pro.price_month_local, 'business': plans.business.price_month_local}|tojson }};
+  const charged = {{ month_choices|tojson }};
+  const lpPlan = document.getElementById('lp-plan'), lpMonths = document.getElementById('lp-months'), lpAmount = document.getElementById('lp-amount');
+  const showAmount = () => lpAmount.textContent = '{{ currency }} ' + (prices[lpPlan.value] * charged[lpMonths.value]).toLocaleString('en');
+  [lpPlan, lpMonths].forEach(el => el.addEventListener('change', showAmount)); showAmount();
+  document.querySelectorAll('a[href="#pay-local"]').forEach(a => a.addEventListener('click', () => setTimeout(showAmount)));
+</script>
+{% endif %}
+{% if not stripe and not local %}<p class="small text-muted mt-3">Payment is not configured on this server (operator: set LOCAL_PAYMENT_DETAILS for bank / JazzCash / Easypaisa, or the STRIPE_* variables for cards).</p>{% endif %}
 {% else %}
 <div class="card" style="max-width: 760px"><div class="card-body">
   {% if license %}<p class="mb-2"><i class="bi bi-patch-check text-success"></i> Licensed to <strong>{{ license.licensee }}</strong> ·

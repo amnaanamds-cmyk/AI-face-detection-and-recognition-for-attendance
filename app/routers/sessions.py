@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.terminology import terms
+from app.terminology import terms_of
 from app.deps import require_active_subscription, can_manage_course, course_scope, flash, render, staff
 from app.models import AttendanceStatus, ClassSession, Course, Enrollment, SessionState, Student, User
 from app.services import app_settings
@@ -20,7 +20,7 @@ router = APIRouter()
 
 
 def _t(user):
-    return terms(user.org.kind)
+    return terms_of(user.org)
 
 
 def _get(db: Session, sid: int, user: User) -> ClassSession:

@@ -8,7 +8,9 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import flash, render, superadmin
-from app.models import Organization, Student, User
+from app.config import settings
+from app.models import ManualPayment, Organization, Student, User
+from app.services import local_payments
 from app.services.billing import PLANS, plan_of
 from app.services.privacy import purge_biometrics
 
@@ -26,7 +28,26 @@ def platform(request: Request, user: User = Depends(superadmin), db: Session = D
              "people": sum(people.values())}
     mrr = sum(PLANS[o.plan].price_month_usd or 0 for o in orgs
               if o.plan in PLANS and o.plan_status == "active" and o.plan != "trial")
-    return render(request, "platform.html", user, rows=rows, stats=stats, mrr=mrr, plans=PLANS)
+    return render(request, "platform.html", user, rows=rows, stats=stats, mrr=mrr, plans=PLANS,
+                  payments=local_payments.pending(db), methods=local_payments.METHODS, currency=settings.local_currency)
+
+
+@router.post("/platform/payments/{pid}")
+def decide_payment(pid: int, request: Request, action: str = Form(...), note: str = Form(""),
+                   user: User = Depends(superadmin), db: Session = Depends(get_db)):
+    p = db.get(ManualPayment, pid)
+    if p is None:
+        raise HTTPException(404)
+    try:
+        if action == "approve":
+            local_payments.approve(db, p)
+            flash(request, f"{p.org.name}: {PLANS[p.plan].name} active until {p.org.paid_until:%d %b %Y}")
+        else:
+            local_payments.reject(db, p, note)
+            flash(request, f"{p.org.name}: payment {p.reference} rejected")
+    except local_payments.PaymentError as exc:
+        flash(request, str(exc), "danger")
+    return RedirectResponse("/platform", status_code=303)
 
 
 @router.post("/platform/orgs/{oid}")

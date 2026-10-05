@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
-from app.terminology import terms
+from app.terminology import terms_of
 from app.deps import require_active_subscription, admin_only, course_scope, flash, get_course, get_student, render, staff
 from app.models import Attendance, Course, Enrollment, Role, Student, User
 from app.security import hash_password
@@ -27,7 +27,7 @@ router = APIRouter()
 
 
 def _t(user):
-    return terms(user.org.kind)
+    return terms_of(user.org)
 
 FIELDS = ("student_code", "roll_number", "name", "department", "semester", "section", "email", "phone",
           "guardian_name", "guardian_phone", "guardian_email")
@@ -37,7 +37,7 @@ OPTIONAL = ("email", "phone", "roll_number", "guardian_name", "guardian_phone", 
 def auto_enroll(db: Session, student: Student) -> int:
     """Enroll the student in every course of their department/semester/section."""
     courses = db.scalars(select(Course).where(
-        Course.org_id == student.org_id, Course.department == student.department,
+        Course.org_id == student.org_id, Course.department.in_(("", student.department)),
         Course.semester == student.semester, Course.section == student.section
     )).all()
     have = {e.course_id for e in student.enrollments}

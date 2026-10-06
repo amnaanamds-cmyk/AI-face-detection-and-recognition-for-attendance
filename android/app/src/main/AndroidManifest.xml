@@ -35,6 +35,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- "Open in the FaceAttend app" link on the login / Connect phones page: faceattend://connect?url=https://... -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="faceattend" android:host="connect" />
+            </intent-filter>
         </activity>
 
         <activity android:name=".SetupActivity" android:exported="false" android:label="@string/setup_title" />

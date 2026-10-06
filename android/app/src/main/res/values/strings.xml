@@ -2,7 +2,7 @@
     <string name="app_name">FaceAttend</string>
     <string name="setup_title">Connect to server</string>
     <string name="gateway_title">SMS sender for parent messages</string>
-    <string name="setup_intro">Scan the QR code shown in FaceAttend on the computer (Connect phones / share online), or type the address.</string>
+    <string name="setup_intro">Scan the QR code shown on the computer (Connect phones / share online), choose a picture of it from your gallery, or type the address.\n\nEasiest: open your school\'s FaceAttend link in Chrome and tap \"Open in the FaceAttend app\".</string>
     <string name="scan_qr">Scan QR code</string>
     <string name="server_hint">https://… address of the server</string>
     <string name="connect">Connect</string>

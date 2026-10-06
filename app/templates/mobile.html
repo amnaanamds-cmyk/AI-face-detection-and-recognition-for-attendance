@@ -41,7 +41,7 @@
       <div class="fs-5 fw-semibold user-select-all text-break">{{ share.url }}</div>
       <div class="d-flex gap-2 mt-2">
         <button class="btn btn-sm btn-outline-secondary" onclick="navigator.clipboard.writeText('{{ share.url }}'); this.textContent='Copied'">Copy link</button>
-        <a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="https://wa.me/?text={{ ('Open ' ~ app_name ~ ': ' ~ share.url)|urlencode }}"><i class="bi bi-whatsapp"></i> Send via WhatsApp</a>
+        <a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="https://wa.me/?text={{ ('Open ' ~ app_name ~ ': ' ~ share.url ~ ' - on an Android phone with the app installed, tap "Open in the FaceAttend app" on the login page.')|urlencode }}"><i class="bi bi-whatsapp"></i> Send via WhatsApp</a>
       </div>
       <div class="small text-muted mt-2">The link works while this computer is on and {{ app_name }} is running. It changes when sharing is restarted.
         Anyone with the link sees the login page, so use strong passwords.</div>
@@ -74,7 +74,8 @@
   <ol class="small mb-2 mt-2">
     <li>On the phone, open the address above and tap <strong>Download Android app</strong> (or scan the QR code and come back to this page).</li>
     <li>Open the downloaded <code>FaceAttend.apk</code>. If Android asks, allow installing apps from this source.</li>
-    <li>Open FaceAttend, tap <strong>Scan QR code</strong> and scan the QR code above.</li>
+    <li>Open FaceAttend and tap <strong>Scan QR code</strong>, or <strong>Choose QR picture from gallery</strong> if the QR code was sent to the phone.
+      Or open the link in Chrome on the phone and tap <strong>Open in the FaceAttend app</strong> on the login page.</li>
   </ol>
   <a class="btn btn-primary btn-sm" href="/download/android"><i class="bi bi-download"></i> Download Android app (.apk)</a>
   <a class="btn btn-outline-primary btn-sm" href="https://github.com/amnaanamds-cmyk/AI-face-detection-and-recognition-for-attendance/releases/latest/download/FaceAttend.apk">Newest version from GitHub</a>

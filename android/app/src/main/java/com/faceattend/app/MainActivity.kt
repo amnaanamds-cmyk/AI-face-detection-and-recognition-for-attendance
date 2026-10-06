@@ -74,7 +74,8 @@ class MainActivity : AppCompatActivity() {
             }
         })
         if (prefs.serverUrl.isEmpty() && BuildConfig.CLOUD_URL.isNotEmpty()) prefs.serverUrl = BuildConfig.CLOUD_URL
-        if (prefs.serverUrl.isEmpty()) setup.launch(Intent(this, SetupActivity::class.java))
+        if (linkServer(intent)) loadHome()
+        else if (prefs.serverUrl.isEmpty()) setup.launch(Intent(this, SetupActivity::class.java))
         else if (savedInstanceState != null) web.restoreState(savedInstanceState) else loadHome()
         if (prefs.gatewayEnabled) SmsGatewayService.start(this)
         Updater.check(this)   // at most once a day: offers a newer release from GitHub
@@ -238,4 +239,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (linkServer(intent)) loadHome()
+    }
+
+    /** faceattend://connect?url=https://... (the "Open in the FaceAttend app" button): no QR code needed. */
+    private fun linkServer(intent: Intent?): Boolean {
+        val data = intent?.data ?: return false
+        if (data.scheme != "faceattend" || data.host != "connect") return false
+        val url = Prefs.normalizeUrl(data.getQueryParameter("url") ?: return false)
+        if (url.isEmpty()) return false
+        prefs.serverUrl = url
+        Toast.makeText(this, "Connected to $url", Toast.LENGTH_LONG).show()
+        return true
+    }
 }

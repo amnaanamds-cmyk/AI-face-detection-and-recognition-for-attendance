@@ -74,3 +74,8 @@ def test_certificate_authority_and_ip_change(tmp_path: Path):
     assert new_ca == ca  # phones keep trusting the server
     assert "10.0.0.7" in [str(i) for i in new_leaf.extensions.get_extension_for_class(
         x509.SubjectAlternativeName).value.get_values_for_type(x509.IPAddress)]
+
+
+def test_login_page_offers_open_in_app_link(client):
+    page = client.get("/login").text
+    assert 'id="openApp"' in page and "faceattend://connect?url=" in page and "FaceAttendAndroid" in page

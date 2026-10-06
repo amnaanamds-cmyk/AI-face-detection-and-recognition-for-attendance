@@ -8,6 +8,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
@@ -24,11 +25,27 @@ class SetupActivity : AppCompatActivity() {
     private lateinit var connect: Button
 
     private val scan = registerForActivityResult(ScanContract()) { result ->
-        val text = result.contents ?: return@registerForActivityResult
+        result.contents?.let { useCode(it) }
+    }
+
+    /** A QR code saved as a picture (screenshot, or received on WhatsApp). */
+    private val pickImage = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri == null) return@registerForActivityResult
+        status.text = "Reading the QR code …"
+        thread {
+            val text = try { QrImage.decode(contentResolver, uri) } catch (e: Exception) { null }
+            runOnUiThread {
+                if (text == null) status.text = "No QR code found in that picture. Try a clearer screenshot of the QR code."
+                else useCode(text)
+            }
+        }
+    }
+
+    private fun useCode(text: String) {
         val parsed = Prefs.parseScan(text)
         if (parsed == null) {
             status.text = "That QR code is not a FaceAttend address."
-            return@registerForActivityResult
+            return
         }
         if (parsed.token != null) {   // the SMS pairing code also tells us the server
             prefs.gatewayServer = parsed.server
@@ -61,6 +78,10 @@ class SetupActivity : AppCompatActivity() {
                 scan.launch(ScanOptions().setPrompt("Scan the QR code on the computer").setBeepEnabled(false)
                     .setOrientationLocked(false).setDesiredBarcodeFormats(ScanOptions.QR_CODE))
             }
+        })
+        root.addView(Button(this).apply {
+            text = "Choose QR picture from gallery"
+            setOnClickListener { pickImage.launch("image/*") }
         })
         address = EditText(this).apply {
             hint = getString(R.string.server_hint)

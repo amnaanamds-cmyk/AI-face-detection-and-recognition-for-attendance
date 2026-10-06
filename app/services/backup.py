@@ -139,9 +139,9 @@ def restore(data: bytes) -> dict:
                 live.backup(aside)
         dest.parent.mkdir(parents=True, exist_ok=True)
         # copy page by page into the live file (safe while the server has it open), then drop pooled connections
+        # (other connections simply see the new content; the pool is not reset, so no connection is left open)
         with _conn(str(candidate)) as src, _conn(str(dest)) as live:
             src.backup(live)
-        database.engine.dispose()
     keys_changed = False
     for name, path in _key_files().items():
         member = f"keys/{name}"

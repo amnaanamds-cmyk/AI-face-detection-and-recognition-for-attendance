@@ -18,7 +18,7 @@ from app import database
 from app.config import settings
 from app.deps import Forbidden, NotAuthenticated, render
 from app.models import Organization, Role, User
-from app.routers import (admin, analytics, auth, billing, courses, dashboard, imports, integrity, kiosk, legal, messages, overview,
+from app.routers import (admin, analytics, auth, billing, courses, dashboard, imports, integrity, kiosk, legal, messages, overview, timetable, backups, staff,
                          muster,
                          mobile,
                          platform, reports, sessions, students, visitors)
@@ -70,7 +70,8 @@ async def lifespan(_app: FastAPI):
         for org_id in db.scalars(select(Organization.id)).all():
             ledger.ensure_baseline(db, org_id)  # first start with the ledger: existing records = starting point
             biokey.protect_legacy(db, org_id)   # cancelable biometrics for templates stored before it existed
-    from app.services import tunnel
+    from app.services import backup, tunnel
+    backup.start_daily_thread()
     if settings.edition != "saas":
         tunnel.resume_if_remembered()  # "share online" was on before the restart
     yield
@@ -84,7 +85,7 @@ def create_app() -> FastAPI:
                        https_only=settings.public_base_url.startswith("https://"))
     app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 
-    for r in (mobile, legal, auth, dashboard, overview, imports, students, courses, sessions, kiosk, analytics, reports, admin, messages, integrity, visitors, muster, platform, billing):
+    for r in (mobile, legal, auth, dashboard, overview, timetable, backups, staff, imports, students, courses, sessions, kiosk, analytics, reports, admin, messages, integrity, visitors, muster, platform, billing):
         app.include_router(r.router)
 
     @app.exception_handler(NotAuthenticated)

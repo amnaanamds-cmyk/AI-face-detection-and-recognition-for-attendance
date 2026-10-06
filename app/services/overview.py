@@ -52,7 +52,7 @@ def _class_label(semester, section) -> str:
 def overview(db: Session, org_id: int, start: date | None, end: date, threshold: float = 75.0,
              today: date | None = None) -> dict:
     today = today or date.today()
-    courses = db.scalars(select(Course).where(Course.org_id == org_id).order_by(Course.code)).all()
+    courses = db.scalars(select(Course).where(Course.org_id == org_id, Course.code != "STAFF").order_by(Course.code)).all()
     course_ids = [c.id for c in courses]
 
     sq = select(ClassSession).where(ClassSession.course_id.in_(course_ids), ClassSession.date <= end)
@@ -106,6 +106,19 @@ def overview(db: Session, org_id: int, start: date | None, end: date, threshold:
     for r in db.scalars(select(Attendance).where(Attendance.course_id.in_(course_ids), Attendance.date == today)).all():
         today_recs[r.session_id].append(r.status)
 
+    # timetable: periods that should have been taken in the range (holidays left out)
+    from app.services import timetable as tt
+
+    first_day = start or db.scalar(select(ClassSession.date).where(ClassSession.course_id.in_(course_ids))
+                                   .order_by(ClassSession.date).limit(1)) or end
+    range_periods = tt.periods(db, org_id, first_day, end) if course_ids else []
+    periods_today = [p for p in range_periods if p.day == today] if first_day <= today <= end else \
+        (tt.periods(db, org_id, today, today) if course_ids else [])
+
+    from app.services import staff as staff_service
+
+    own = staff_service.summary(db, org_id, start, end, today)
+
     for u in db.scalars(select(User).where(User.org_id == org_id, User.role == Role.teacher, User.is_active.is_(True))
                         .order_by(User.full_name)).all():
         mine = [c for c in courses if c.teacher_id == u.id]
@@ -127,6 +140,9 @@ def overview(db: Session, org_id: int, start: date | None, end: date, threshold:
             if marked else None,
             "last": last, "today": now_classes,
             "taken_today": any(x["session"].state != SessionState.scheduled for x in now_classes),
+            "periods": tt.taken_rate([p for p in range_periods if p.course.teacher_id == u.id]),
+            "own": own.get(u.id),
+            "periods_today": [p for p in periods_today if p.course.teacher_id == u.id],
         })
 
     # --- students -----------------------------------------------------------------------------------
@@ -135,7 +151,8 @@ def overview(db: Session, org_id: int, start: date | None, end: date, threshold:
         for sid in sids:
             student_courses[sid].append(cid)
     students = []
-    for s in db.scalars(select(Student).where(Student.org_id == org_id, Student.is_active.is_(True))
+    for s in db.scalars(select(Student).where(Student.org_id == org_id, Student.is_active.is_(True),
+                                              Student.staff_user_id.is_(None))
                         .order_by(Student.semester, Student.section, Student.student_code)).all():
         st = by_student.get(s.id, [])
         students.append({
@@ -155,6 +172,9 @@ def overview(db: Session, org_id: int, start: date | None, end: date, threshold:
         "teachers_total": len(teachers_with_subjects),
         "teachers_taken": sum(1 for t in teachers_with_subjects if t["taken_today"]),
         "subjects": subjects, "teachers": teachers, "students": students,
+        "has_staff": any(x["face"] for x in own.values()),
+        "has_timetable": bool(range_periods or periods_today or (course_ids and tt.slots(db, org_id))),
+        "periods_taken": tt.taken_rate(range_periods), "holiday": tt.holiday_on(db, org_id, today),
         "subject_cols": [x["course"] for x in subjects],
         "classes": sorted({x["class"] for x in students}),
     }
@@ -196,10 +216,11 @@ def to_xlsx(data: dict, org_name: str = "") -> bytes:
                                           f"Students below {data['threshold']:.0f}%"],
           [[x["course"].code, x["course"].name, x["class"], x["teacher"], x["held"], x["students"], x["rate"], x["below"]]
            for x in data["subjects"]], rate_cols=(6,))
-    sheet(wb.create_sheet(), "Teachers", ["Teacher", "Subjects", "Classes held", "Students' attendance %",
-                                          "Marked by hand %", "Last attendance taken"],
-          [[x["user"].full_name, ", ".join(c.code for c in x["subjects"]), x["held"], x["rate"], x["by_hand"],
-            x["last"].strftime("%Y-%m-%d %H:%M") if x["last"] else "never"] for x in data["teachers"]], rate_cols=(3,))
+    sheet(wb.create_sheet(), "Teachers", ["Teacher", "Own attendance %", "Subjects", "Classes held", "Periods taken",
+                                          "Periods taken %", "Students' attendance %", "Marked by hand %", "Last attendance taken"],
+          [[x["user"].full_name, (x["own"] or {}).get("rate"), ", ".join(c.code for c in x["subjects"]), x["held"],
+            f"{x['periods'][0]}/{x['periods'][1]}" if x["periods"][1] else "-", x["periods"][2], x["rate"], x["by_hand"],
+            x["last"].strftime("%Y-%m-%d %H:%M") if x["last"] else "never"] for x in data["teachers"]], rate_cols=(1, 5, 6))
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()

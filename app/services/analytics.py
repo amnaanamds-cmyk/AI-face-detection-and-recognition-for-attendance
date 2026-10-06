@@ -98,7 +98,7 @@ def dashboard(db: Session, course_ids: list[int] | None = None, today: date | No
     c = counts(recs_today)
     attended = c["present"] + c["late"]
 
-    student_q = select(Student).where(Student.is_active.is_(True))
+    student_q = select(Student).where(Student.is_active.is_(True), Student.staff_user_id.is_(None))
     if org_id is not None:
         student_q = student_q.where(Student.org_id == org_id)
     elif course_ids is not None:

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_macros.html" import pct, session_state %}
+{% from "_periods.html" import period_badge %}
 {% block title %}{{ 'School' if t.staff == 'Teacher' else 'Organization' }} overview{% endblock %}
 {% block head %}
 <style>
@@ -43,7 +44,7 @@
   <div class="col-6 col-lg-3"><div class="card stat"><div class="card-body">
     <div class="text-muted small">{{ t.staffs }} who took attendance today</div>
     <div class="display-6 {{ 'text-success' if d.teachers_taken == d.teachers_total else 'text-warning' }}">{{ d.teachers_taken }}/{{ d.teachers_total }}</div>
-    <div class="small text-muted">updates every minute</div></div></div></div>
+    <div class="small text-muted">{% if d.has_timetable and d.periods_taken[1] %}periods taken: {{ d.periods_taken[0] }}/{{ d.periods_taken[1] }} ({{ '%.0f'|format(d.periods_taken[2]) }}%) &middot; {% endif %}updates every minute</div></div></div></div>
   <div class="col-6 col-lg-3"><div class="card stat"><div class="card-body">
     <div class="text-muted small">{{ t.people }} below {{ '%.0f'|format(d.threshold) }}%</div>
     <div class="display-6 {{ 'text-danger' if d.below else 'text-success' }}">{{ d.below }}</div>
@@ -59,6 +60,19 @@
 <div class="tab-content border border-top-0 rounded-bottom p-2 p-md-3 mb-4">
 
   <div class="tab-pane fade show active" id="tab-today">
+    {% if d.holiday %}<div class="alert alert-info py-2 mb-2"><strong>Holiday:</strong> {{ d.holiday.name }} - no attendance expected today.</div>{% endif %}
+    {% if d.has_timetable %}
+    <div class="table-responsive mb-3"><table class="table table-sm align-middle mb-0">
+      <thead><tr><th>{{ t.staff }}</th><th>Time</th><th>{{ t.group }}</th><th>Period</th><th class="text-end">Present</th></tr></thead><tbody>
+      {% for x in d.teachers if x.periods_today %}{% for p in x.periods_today %}
+        <tr class="{{ 'table-danger' if p.state == 'missed' }}">{% if loop.first %}<td rowspan="{{ x.periods_today|length }}"><strong>{{ x.user.full_name }}</strong></td>{% endif %}
+          <td>{{ p.slot.start }}</td><td>{{ p.course.code }} <span class="small text-muted">{{ p.course.name }} &middot; {{ p.course.semester }}-{{ p.course.section }}</span></td>
+          <td>{{ period_badge(p.state) }}</td>
+          <td class="text-end">{% if p.session %}{% set c = (x.today|selectattr('session.id', 'equalto', p.session.id)|list) %}<a href="/sessions/{{ p.session.id }}">{{ c[0].present ~ '/' ~ c[0].expected if c else 'open' }}</a>{% endif %}</td></tr>
+      {% endfor %}{% else %}<tr><td colspan="5" class="text-muted">No periods in the timetable today.</td></tr>{% endfor %}
+      </tbody></table></div>
+    <h2 class="h6 text-muted">All attendance taken today</h2>
+    {% endif %}
     <div class="table-responsive"><table class="table table-sm align-middle mb-0">
       <thead><tr><th>{{ t.staff }}</th><th>Today</th><th>{{ t.group }}</th><th>State</th><th class="text-end">Present</th></tr></thead>
       <tbody>
@@ -84,12 +98,17 @@
   <div class="tab-pane fade" id="tab-teachers">
     <div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0">
       <thead><tr><th>{{ t.staff }}</th><th>{{ t.groups }}</th><th class="text-end">{{ t.sessions }} held</th>
+        {% if d.has_staff %}<th class="text-end" title="The teacher's own check-ins at the kiosk">Own attendance</th>{% endif %}
+        {% if d.has_timetable %}<th class="text-end" title="Timetabled periods for which attendance was taken (holidays excluded)">Periods taken</th>{% endif %}
         <th class="text-end">{{ t.people }}' attendance</th><th class="text-end" title="Share of present marks entered by hand instead of by face">Marked by hand</th><th>Last taken</th></tr></thead>
       <tbody>
       {% for x in d.teachers %}
         <tr><td><strong>{{ x.user.full_name }}</strong> <span class="text-muted small">{{ x.user.username }}</span></td>
           <td class="small">{% for c in x.subjects %}<a href="/courses/{{ c.id }}">{{ c.code }}</a>{{ ', ' if not loop.last }}{% else %}<span class="text-muted">none</span>{% endfor %}</td>
-          <td class="text-end">{{ x.held }}</td><td class="text-end">{{ pct(x.rate) }}</td>
+          <td class="text-end">{{ x.held }}</td>
+          {% if d.has_staff %}<td class="text-end">{% if x.own and x.own.face %}{{ pct(x.own.rate) }}{% if x.own.today %} <span class="small text-muted">today {{ x.own.today.marked_at.strftime('%H:%M') if x.own.today.marked_at else x.own.today.status.value }}</span>{% endif %}{% else %}<span class="small text-muted">no face</span>{% endif %}</td>{% endif %}
+          {% if d.has_timetable %}<td class="text-end">{% if x.periods[1] %}{{ x.periods[0] }}/{{ x.periods[1] }} {{ pct(x.periods[2]) }}{% else %}<span class="text-muted">--</span>{% endif %}</td>{% endif %}
+          <td class="text-end">{{ pct(x.rate) }}</td>
           <td class="text-end">{% if x.by_hand is none %}<span class="text-muted">--</span>{% else %}<span class="{{ 'text-danger fw-semibold' if x.by_hand > 30 else '' }}">{{ '%.0f'|format(x.by_hand) }}%</span>{% endif %}</td>
           <td class="small">{{ x.last.strftime('%d %b %H:%M') if x.last else 'never' }}</td></tr>
       {% else %}<tr><td colspan="6" class="text-muted">No {{ t.staffs|lower }} yet.</td></tr>{% endfor %}

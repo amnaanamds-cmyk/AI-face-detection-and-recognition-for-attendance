@@ -96,7 +96,7 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
 
-    student: Mapped["Student | None"] = relationship()
+    student: Mapped["Student | None"] = relationship(foreign_keys=[student_id])
     courses: Mapped[list["Course"]] = relationship(back_populates="teacher")
     org: Mapped[Organization | None] = relationship()
 
@@ -125,6 +125,8 @@ class Student(Base):
     consent_at: Mapped[datetime | None] = mapped_column(DateTime)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # set for a teacher / staff member who checks in by face at the kiosk (staff attendance)
+    staff_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     registration_date: Mapped[datetime] = mapped_column(DateTime, default=now)
 
     org: Mapped[Organization | None] = relationship()
@@ -432,3 +434,31 @@ class ManualPayment(Base):
     decided_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     org: Mapped[Organization] = relationship()
+
+
+class TimetableSlot(Base):
+    """One period in the weekly timetable: this subject, this weekday, this time."""
+
+    __tablename__ = "timetable_slots"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    course_id: Mapped[int] = mapped_column(ForeignKey("courses.id", ondelete="CASCADE"), index=True)
+    weekday: Mapped[int] = mapped_column(Integer)                 # Monday = 0 ... Sunday = 6
+    start: Mapped[str] = mapped_column(String(5))                 # "08:40"
+    minutes: Mapped[int] = mapped_column(Integer, default=40)
+    room: Mapped[str] = mapped_column(String(40), default="")
+
+    course: Mapped[Course] = relationship()
+
+
+class Holiday(Base):
+    """A day or range of days without classes (no attendance expected)."""
+
+    __tablename__ = "holidays"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    start: Mapped[date] = mapped_column(Date, index=True)
+    end: Mapped[date] = mapped_column(Date)
+    name: Mapped[str] = mapped_column(String(120))

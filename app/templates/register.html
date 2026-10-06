@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pct %}
+{% block title %}Register {{ reg.course.code }}{% endblock %}
+{% block head %}<style>
+  .reg td, .reg th { padding: .15rem .3rem; text-align: center; white-space: nowrap; font-size: .8rem; }
+  .reg td:nth-child(-n+2), .reg th:nth-child(-n+2) { text-align: left; }
+  .reg th:first-child, .reg td:first-child { position: sticky; left: 0; background: var(--bs-body-bg); }
+  .m-A { background: #f8d7da; } .m-L, .m-PA { background: #fff3cd; } .m-H { background: #d1ecf1; } .m-E { background: #e2e3e5; }
+  .wk { color: var(--bs-secondary-color); }
+</style>{% endblock %}
+{% block content %}
+{% set c = reg.course %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+  <div><h1 class="h4 mb-0">Attendance register &middot; {{ c.code }} {{ c.name }}</h1>
+    <div class="text-muted small">{{ t.level or 'Class' }} {{ c.semester }}-{{ c.section }}{% if c.teacher %} &middot; {{ c.teacher.full_name }}{% endif %} &middot; {{ reg.month.strftime('%B %Y') }} &middot; {{ reg.class_days|length }} day(s) with attendance</div></div>
+  <form class="d-flex gap-2" method="get"><input type="hidden" name="course_id" value="{{ c.id }}">
+    <input class="form-control form-control-sm" type="month" name="month" value="{{ month }}" onchange="this.form.submit()">
+    <button class="btn btn-sm btn-outline-success" name="fmt" value="xlsx"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+    <button class="btn btn-sm btn-outline-danger" name="fmt" value="pdf"><i class="bi bi-file-earmark-pdf"></i> PDF</button></form>
+</div>
+<div class="card"><div class="table-responsive"><table class="table table-bordered mb-0 reg">
+  <thead><tr><th>{{ t.person }}</th><th>{{ t.person_id }}</th>{% for d in reg.days %}<th class="{{ 'wk' if d.weekday() >= 5 }}">{{ d.day }}<div class="fw-normal small">{{ d.strftime('%a')[:2] }}</div></th>{% endfor %}
+    <th>P</th><th>L</th><th>A</th><th>E</th><th>%</th></tr></thead>
+  <tbody>
+  {% for r in reg.rows %}<tr><td><a href="/students/{{ r.student.id }}">{{ r.student.name }}</a></td><td class="small">{{ r.student.roll_number or r.student.student_code }}</td>
+    {% for d in reg.days %}{% set m = r.marks[d] %}<td class="m-{{ m|replace('/', '') }}">{{ m }}</td>{% endfor %}
+    <td>{{ r.P }}</td><td>{{ r.L }}</td><td>{{ r.A }}</td><td>{{ r.E }}</td><td>{{ pct(r.pct) }}</td></tr>
+  {% else %}<tr><td colspan="40" class="text-muted">No {{ t.people|lower }} in this {{ t.group|lower }}.</td></tr>{% endfor %}
+  <tr class="fw-semibold"><td>Present</td><td></td>{% for d in reg.days %}<td>{{ reg.present_per_day[d] or '' }}</td>{% endfor %}<td colspan="5"></td></tr>
+  </tbody></table></div></div>
+<p class="small text-muted mt-2">P present &middot; L late &middot; A absent &middot; E excused / leave &middot; H holiday &middot; P/A attended one of two periods that day.</p>
+{% endblock %}

@@ -32,6 +32,7 @@ _NEW_COLUMNS = [
     ("sessions", "is_exam", "BOOLEAN", "0"),
     ("organizations", "institution", "VARCHAR(20)", None),
     ("organizations", "paid_until", "DATETIME", None),
+    ("students", "staff_user_id", "INTEGER", None),
 ]
 
 

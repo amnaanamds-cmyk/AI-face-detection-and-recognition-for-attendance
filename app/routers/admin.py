@@ -54,6 +54,11 @@ def toggle_user(uid: int, request: Request, user: User = Depends(admin_only), db
         flash(request, "You cannot deactivate your own account", "danger")
     else:
         target.is_active = not target.is_active
+        from app.services.staff import person_for
+
+        person = person_for(db, target)
+        if person is not None:              # an inactive teacher is no longer expected at the kiosk
+            person.is_active = target.is_active
         db.commit()
     return RedirectResponse("/users", status_code=303)
 

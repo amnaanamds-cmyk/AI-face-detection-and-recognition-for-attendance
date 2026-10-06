@@ -74,3 +74,28 @@ def session_report(sid: int, request: Request, fmt: str = "html", user: User = D
     if s is None or not can_manage_course(user, s.course):
         raise HTTPException(404, "Session not found")
     return _respond(request, user, reports.session_report(db, s, terms_of(user.org)), fmt, f"attendance_session_{sid}")
+
+
+@router.get("/reports/register")
+def register(request: Request, course_id: int = 0, month: str = "", fmt: str = "html",
+             user: User = Depends(staff), db: Session = Depends(get_db)):
+    """Monthly attendance register (students x days), as on paper."""
+    from app.services import register as reg_service
+
+    course = db.get(Course, course_id)
+    if course is None or not can_manage_course(user, course):
+        raise HTTPException(404, "Choose one of your " + terms_of(user.org).groups.lower())
+    try:
+        y, m = (int(x) for x in (month or date.today().strftime("%Y-%m")).split("-"))
+        reg = reg_service.build(db, course, y, m)
+    except ValueError as exc:
+        raise HTTPException(400, "Month must look like 2026-10") from exc
+    name = f"register_{course.code}_{y}-{m:02d}"
+    org_name = user.org.name if user.org else ""
+    if fmt == "xlsx":
+        return Response(reg_service.to_xlsx(reg, org_name), headers={"Content-Disposition": f'attachment; filename="{name}.xlsx"'},
+                        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    if fmt == "pdf":
+        return Response(reg_service.to_pdf(reg, org_name), media_type="application/pdf",
+                        headers={"Content-Disposition": f'attachment; filename="{name}.pdf"'})
+    return render(request, "register.html", user, reg=reg, month=f"{y}-{m:02d}")

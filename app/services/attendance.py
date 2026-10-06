@@ -48,7 +48,9 @@ def status_for_arrival(session: ClassSession, when: datetime) -> AttendanceStatu
 
 
 def enrolled_student_ids(db: Session, course_id: int) -> set[int]:
-    return set(db.scalars(select(Enrollment.student_id).where(Enrollment.course_id == course_id)).all())
+    """Active people of a group (deactivated ones are not expected and never marked absent)."""
+    return set(db.scalars(select(Enrollment.student_id).join(Student, Student.id == Enrollment.student_id)
+                          .where(Enrollment.course_id == course_id, Student.is_active.is_(True))).all())
 
 
 @dataclass
@@ -222,7 +224,12 @@ def sync_scheduled_sessions(db: Session, org_id: int, when: datetime | None = No
     """Open today's sessions of scheduled groups once they start (so absentees are recorded even if nobody
     checks in) and close automatic sessions whose time is over."""
     when = when or now()
+    from app.services.timetable import holiday_on
+
+    holiday = holiday_on(db, org_id, when.date()) is not None
     for course in db.scalars(select(Course).where(Course.org_id == org_id, Course.schedule_start.is_not(None))).all():
+        if holiday:
+            break
         if scheduled_today(course, when.date()) and when >= datetime.combine(when.date(), _parse_hhmm(course.schedule_start)):
             exists = db.scalar(select(ClassSession.id).where(ClassSession.course_id == course.id,
                                                              ClassSession.date == when.date(),

@@ -60,7 +60,8 @@ staff = require(Role.admin, Role.teacher)
 def course_scope(db: Session, user: User) -> list[int]:
     """Course ids the user may see (always limited to the user's organization)."""
     if user.role == Role.admin:
-        return list(db.scalars(select(Course.id).where(Course.org_id == user.org_id)).all())
+        # every group except staff attendance, which has its own page (Admin > Staff attendance)
+        return list(db.scalars(select(Course.id).where(Course.org_id == user.org_id, Course.code != "STAFF")).all())
     if user.role == Role.teacher:
         return list(db.scalars(select(Course.id).where(Course.teacher_id == user.id)).all())
     if user.student_id:

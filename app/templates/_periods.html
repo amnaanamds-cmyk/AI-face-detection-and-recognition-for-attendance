@@ -1,0 +1,26 @@
+{# "My periods today": one-tap Start for each timetabled period. Expects `periods` and `holiday`. #}
+{% macro period_badge(state) -%}
+{%- set m = {'done': ('success', 'Taken'), 'running': ('primary', 'Running'), 'due': ('warning', 'Now'), 'upcoming': ('secondary', 'Later'), 'missed': ('danger', 'Missed')} -%}
+<span class="badge text-bg-{{ m[state][0] }}">{{ m[state][1] }}</span>
+{%- endmacro %}
+
+{% macro periods_card(periods, holiday, title, show_teacher=False) -%}
+<div class="card mb-3"><div class="card-header d-flex justify-content-between align-items-center">
+  <span><i class="bi bi-calendar-week"></i> {{ title }}</span><a class="small" href="/timetable">Timetable</a></div>
+  {% if holiday %}<div class="card-body py-2"><span class="badge text-bg-info">Holiday</span> {{ holiday.name }} - no attendance needed today.</div>
+  {% elif not periods %}<div class="card-body py-2 small text-muted">No periods in the timetable today.</div>
+  {% else %}
+  <ul class="list-group list-group-flush">
+  {% for p in periods %}
+    <li class="list-group-item d-flex justify-content-between align-items-center gap-2 {{ 'list-group-item-warning' if p.state == 'due' }}">
+      <div><strong>{{ p.slot.start }}</strong> <span class="text-muted small">{{ p.slot.minutes }} min</span>
+        &middot; {{ p.course.code }} <span class="small text-muted">{{ p.course.name }}{% if p.slot.room %} &middot; {{ p.slot.room }}{% endif %}{% if show_teacher and p.course.teacher %} &middot; {{ p.course.teacher.full_name }}{% endif %}</span></div>
+      <div class="d-flex align-items-center gap-2 text-nowrap">{{ period_badge(p.state) }}
+        {% if p.session %}<a class="btn btn-sm btn-outline-secondary" href="/sessions/{{ p.session.id }}{{ '/live' if p.state == 'running' }}">{{ 'Open' if p.state == 'running' else 'Details' }}</a>
+        {% elif p.state in ('due', 'missed', 'upcoming') and (user.role.value == 'admin' or (p.course.teacher_id == user.id)) %}
+          <form method="post" action="/timetable/{{ p.slot.id }}/start"><button class="btn btn-sm {{ 'btn-success' if p.state == 'due' else 'btn-outline-success' }}"><i class="bi bi-camera-video"></i> Start</button></form>{% endif %}
+      </div></li>
+  {% endfor %}
+  </ul>{% endif %}
+</div>
+{%- endmacro %}

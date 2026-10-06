@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Backup{% endblock %}
+{% block content %}
+<h1 class="h3 mb-1"><i class="bi bi-shield-check"></i> Backup &amp; restore</h1>
+{% if not available %}
+<div class="alert alert-info mt-3" style="max-width: 760px">This installation keeps its data in a managed database (hosted edition): backups are made by the database service. Each person's data can be exported from their page.</div>
+{% else %}
+<p class="text-muted">A backup contains every record and the keys that unlock the face data. Keep a copy away from this computer (USB stick, Google Drive): if the PC breaks, install FaceAttend on another one and restore.</p>
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card mb-3"><div class="card-body">
+      <a class="btn btn-primary" href="/backup/download"><i class="bi bi-download"></i> Download a backup now</a>
+      <div class="small text-muted mt-2">Treat the file like a key: it contains everyone's data.</div>
+    </div></div>
+    <div class="card"><div class="card-header">Automatic daily backups <span class="small text-muted">(newest {{ backups|length }}, up to 14 kept)</span></div>
+      <ul class="list-group list-group-flush">
+      {% for b in backups %}<li class="list-group-item d-flex justify-content-between align-items-center"><span>{{ b.time.strftime('%a %d %b %Y %H:%M') }} <span class="small text-muted">{{ (b.size / 1024)|round|int }} KB</span></span>
+        <a class="btn btn-sm btn-outline-secondary" href="/backup/file/{{ b.name }}"><i class="bi bi-download"></i></a></li>
+      {% else %}<li class="list-group-item small text-muted">The first automatic backup is made 10 minutes after FaceAttend starts, then every day.</li>{% endfor %}
+      </ul><div class="card-footer small text-muted">Folder: <code>{{ folder }}</code></div></div>
+  </div>
+  <div class="col-lg-6"><div class="card border-danger"><div class="card-header text-danger">Restore a backup</div><div class="card-body">
+    <p class="small">Replaces <strong>all current data</strong> with the backup. The current data is kept aside as a file, so nothing is lost by mistake.</p>
+    <form method="post" action="/backup/restore" enctype="multipart/form-data">
+      <input class="form-control mb-2" type="file" name="file" accept=".zip" required>
+      <input class="form-control mb-2" name="confirm" placeholder="Type RESTORE to confirm" autocomplete="off" required>
+      <button class="btn btn-danger">Restore</button>
+    </form></div></div></div>
+</div>
+{% endif %}
+{% endblock %}

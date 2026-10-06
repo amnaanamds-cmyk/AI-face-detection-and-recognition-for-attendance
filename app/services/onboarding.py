@@ -13,8 +13,9 @@ DISMISSED = "onboarding_dismissed"
 def steps(db: Session, org) -> list[dict]:
     t = terms_of(org)
     staff = db.scalar(select(func.count(User.id)).where(User.org_id == org.id, User.role == Role.teacher)) or 0
-    groups = db.scalar(select(func.count(Course.id)).where(Course.org_id == org.id, Course.code != "GENERAL")) or 0
-    people = db.scalar(select(func.count(Student.id)).where(Student.org_id == org.id, Student.is_active.is_(True))) or 0
+    groups = db.scalar(select(func.count(Course.id)).where(Course.org_id == org.id, Course.code.not_in(("GENERAL", "STAFF")))) or 0
+    people = db.scalar(select(func.count(Student.id)).where(Student.org_id == org.id, Student.is_active.is_(True),
+                                                           Student.staff_user_id.is_(None))) or 0
     with_face = db.scalar(select(func.count(func.distinct(FaceEmbedding.student_id))).join(Student)
                           .where(Student.org_id == org.id, Student.is_active.is_(True))) or 0
     taken = db.scalar(select(func.count(ClassSession.id)).join(Course)

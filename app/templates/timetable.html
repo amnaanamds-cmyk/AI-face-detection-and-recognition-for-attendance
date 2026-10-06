@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% from "_periods.html" import periods_card with context %}
+{% block title %}Timetable{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <h1 class="h3 mb-0"><i class="bi bi-calendar-week"></i> Weekly timetable</h1>
+  <div class="d-flex gap-2">
+    {% if classes %}<form method="get"><select class="form-select form-select-sm" name="cls" onchange="this.form.submit()">
+      <option value="">All {{ (t.level or 'class')|lower }}es</option>{% for c in classes %}<option value="{{ c }}" {{ 'selected' if c == cls }}>{{ t.level or 'Class' }} {{ c }}</option>{% endfor %}</select></form>{% endif %}
+    <a class="btn btn-sm btn-outline-secondary" href="/calendar"><i class="bi bi-calendar-x"></i> Holidays</a>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-xl-4">
+    {{ periods_card(today_periods, holiday, 'My periods today' if user.role.value == 'teacher' else 'Periods today', show_teacher=user.role.value == 'admin') }}
+    {% if user.role.value == 'admin' %}
+    <div class="card mb-3"><div class="card-header">Add a period</div><div class="card-body">
+      <form method="post" action="/timetable/new" class="row g-2">
+        <div class="col-12"><select class="form-select" name="course_id" required><option value="">{{ t.group }}…</option>
+          {% for c in courses %}<option value="{{ c.id }}">{{ c.code }} - {{ c.name }} ({{ c.semester }}-{{ c.section }}){% if c.teacher %}, {{ c.teacher.full_name }}{% endif %}</option>{% endfor %}</select></div>
+        <div class="col-12">{% for d in days %}<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="days" value="{{ loop.index0 }}" id="d{{ loop.index0 }}" {{ 'checked' if loop.index0 < 5 }}>
+          <label class="form-check-label small" for="d{{ loop.index0 }}">{{ d[:3] }}</label></div>{% endfor %}</div>
+        <div class="col-4"><input class="form-control" type="time" name="start" required value="08:00"></div>
+        <div class="col-4"><div class="input-group"><input class="form-control" type="number" name="minutes" value="40" min="5" max="600"><span class="input-group-text small">min</span></div></div>
+        <div class="col-4"><input class="form-control" name="room" placeholder="Room"></div>
+        <div class="col-12"><button class="btn btn-primary">Add</button></div>
+      </form></div></div>
+    <div class="card mb-3"><div class="card-header">Import the whole timetable</div><div class="card-body">
+      <p class="small text-muted mb-2">Excel or CSV with <strong>Day, Start, Minutes, Subject code</strong>, Room. <a href="/timetable/template.csv">Template</a></p>
+      <form method="post" action="/timetable/import" enctype="multipart/form-data">
+        <input class="form-control mb-2" type="file" name="file" accept=".csv,.xlsx" required>
+        <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="replace" id="rep"><label class="form-check-label small" for="rep">Replace the current timetable</label></div>
+        <button class="btn btn-outline-primary btn-sm">Import</button></form></div></div>
+    {% endif %}
+  </div>
+  <div class="col-xl-8">
+    <div class="card"><div class="table-responsive"><table class="table table-sm align-top mb-0">
+      <thead><tr>{% for i in range(7) if by_day[i] or i < 6 %}<th>{{ days[i] }}</th>{% endfor %}</tr></thead>
+      <tbody><tr>{% for i in range(7) if by_day[i] or i < 6 %}<td style="min-width: 9rem">
+        {% for s in by_day[i] %}<div class="border rounded p-1 mb-1 small">
+          <div class="d-flex justify-content-between"><strong>{{ s.start }}</strong>
+            {% if user.role.value == 'admin' %}<form method="post" action="/timetable/{{ s.id }}/delete" onsubmit="return confirm('Remove this period?')"><button class="btn btn-link btn-sm p-0 text-danger" title="Remove"><i class="bi bi-x-lg"></i></button></form>{% endif %}</div>
+          <div>{{ s.course.code }}</div>
+          <div class="text-muted">{{ s.course.semester }}-{{ s.course.section }}{% if s.course.teacher %} &middot; {{ s.course.teacher.full_name }}{% endif %}{% if s.room %} &middot; {{ s.room }}{% endif %}</div>
+        </div>{% else %}<span class="text-muted small">-</span>{% endfor %}
+      </td>{% endfor %}</tr></tbody></table></div></div>
+    <p class="small text-muted mt-2">The timetable powers "periods today" with one-tap Start for every {{ t.staff|lower }}, and shows the principal which periods were taken or missed (Overview).</p>
+  </div>
+</div>
+{% endblock %}

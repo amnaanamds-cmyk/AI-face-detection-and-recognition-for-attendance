@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import time
+from datetime import date
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse, Response
@@ -52,7 +53,12 @@ def home(request: Request, db: Session = Depends(get_db)):
     setup = None
     if user.role == Role.admin and onboarding.visible(db, user.org):
         setup = onboarding.steps(db, user.org)
+    from app.services import timetable as tt
+
+    today = date.today()
     return render(request, "dashboard.html", user, d=data, alerts=alerts, setup=setup,
+                  periods=tt.periods(db, user.org_id, today, today, scope), holiday=tt.holiday_on(db, user.org_id, today),
+                  me=_my_attendance(db, user, today),
                   trend=analytics.daily_trend(db, 14, scope), risky=at_risk(db, user.org_id, scope, limit=6))
 
 
@@ -87,3 +93,13 @@ def dismiss_setup(user: User = Depends(current_user), db: Session = Depends(get_
     if user.role == Role.admin:
         onboarding.dismiss(db, user.org)
     return RedirectResponse("/", status_code=303)
+
+
+def _my_attendance(db: Session, user: User, today):
+    """A teacher's own check-ins this month (when they have a face registered for the staff kiosk)."""
+    if user.role != Role.teacher:
+        return None
+    from app.services import staff as staff_service
+
+    row = staff_service.summary(db, user.org_id, today.replace(day=1), today, today).get(user.id)
+    return row if row and row["face"] else None

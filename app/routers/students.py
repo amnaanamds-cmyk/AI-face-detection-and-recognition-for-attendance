@@ -53,7 +53,7 @@ def auto_enroll(db: Session, student: Student) -> int:
 @router.get("/students")
 def list_students(request: Request, q: str = "", semester: str = "", section: str = "",
                   user: User = Depends(staff), db: Session = Depends(get_db)):
-    query = select(Student).where(Student.org_id == user.org_id)
+    query = select(Student).where(Student.org_id == user.org_id, Student.staff_user_id.is_(None))
     if user.role != Role.admin:
         query = query.join(Enrollment).where(Enrollment.course_id.in_(course_scope(db, user))).distinct()
     if q:

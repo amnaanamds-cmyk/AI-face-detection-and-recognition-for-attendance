@@ -61,3 +61,13 @@ Choose **Today / This week / This month / Whole term** or any dates. **Download 
 the same information in three sheets (Students, Subjects, Teachers) for the school records.
 Day-by-day registers are under **Reports**. Parents of absent students can get an SMS
 (Admin → Parent messages).
+
+## 5. Timetable, holidays, teacher attendance, register, backup
+
+| Feature | Where | What it does |
+|---|---|---|
+| **Weekly timetable** | More → Timetable | One row per period (Day, Start, Minutes, Subject code), typed in or imported from Excel. Every teacher then sees **My periods today** with a one-tap **Start**, and the principal's Overview shows each period as Taken / Now / Missed, plus **Periods taken %** per teacher. |
+| **Holidays** | More → Holidays | Eid, vacations, strikes: no periods are expected and nobody is marked absent on those days. |
+| **Teacher attendance by face** | Admin → Teacher attendance | Register each teacher's face once; they check in at the door kiosk like students. Set the check-in time and school days. Late and absent days are counted automatically. The Overview shows each teacher's **Own attendance**, and teachers see theirs on their dashboard. |
+| **Monthly register** | Reports → Monthly register | The paper register, day by day (P, L, A, E, H), with totals, as Excel or PDF (landscape, ready to print). It works for teachers too: open it from the Teacher attendance page. |
+| **Backup & restore** | Admin → Backup & restore | One download holds all records plus the keys that unlock face data. Automatic daily backups (newest 14) are kept on the computer. Copy one to a USB stick or Google Drive regularly. Restoring keeps the replaced data aside. |

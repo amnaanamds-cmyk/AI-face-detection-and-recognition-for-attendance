@@ -47,7 +47,8 @@ def plan_of(org: Organization) -> Plan:
 
 
 def people_count(db: Session, org_id: int) -> int:
-    return db.scalar(select(func.count(Student.id)).where(Student.org_id == org_id, Student.is_active.is_(True))) or 0
+    return db.scalar(select(func.count(Student.id)).where(Student.org_id == org_id, Student.is_active.is_(True),
+                                                         Student.staff_user_id.is_(None))) or 0
 
 
 def subscription_problem(org: Organization) -> str | None:

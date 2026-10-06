@@ -91,7 +91,8 @@ def course_detail(cid: int, request: Request, user: User = Depends(staff), db: S
     summary = analytics.course_summary(db, cid)
     sessions = db.scalars(select(ClassSession).where(ClassSession.course_id == cid).order_by(ClassSession.start_time.desc())).all()
     enrolled = {r["student"].id for r in summary["rows"]}
-    others = db.scalars(select(Student).where(Student.org_id == user.org_id, Student.is_active.is_(True))
+    others = db.scalars(select(Student).where(Student.org_id == user.org_id, Student.is_active.is_(True),
+                                              Student.staff_user_id.is_(None))
                         .order_by(Student.student_code)).all()
     return render(request, "courses/detail.html", user, course=c, summary=summary, sessions=sessions,
                   candidates=[s for s in others if s.id not in enrolled])

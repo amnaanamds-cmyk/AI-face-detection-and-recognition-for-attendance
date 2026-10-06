@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pct, status_badge %}
+{% block title %}Staff attendance{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+  <h1 class="h3 mb-0"><i class="bi bi-person-badge"></i> {{ t.staff }} attendance</h1>
+  <div class="d-flex gap-2">
+    <form method="get"><input class="form-control form-control-sm" type="month" name="month" value="{{ month }}" onchange="this.form.submit()"></form>
+    <a class="btn btn-sm btn-outline-secondary" href="/reports/register?course_id={{ course.id }}&month={{ month }}"><i class="bi bi-table"></i> Register</a>
+    <a class="btn btn-sm btn-primary" href="/kiosk"><i class="bi bi-door-open"></i> Open the kiosk</a>
+  </div>
+</div>
+<p class="text-muted">{{ t.staffs }} check in by looking at the kiosk camera (a tablet or webcam at the entrance), exactly like {{ t.people|lower }}.
+  Anyone not checked in when the day ends is marked absent; holidays are skipped.</p>
+
+<div class="row g-3">
+  <div class="col-xl-8"><div class="card"><div class="table-responsive"><table class="table table-sm align-middle mb-0">
+    <thead><tr><th>{{ t.staff }}</th><th>Face</th><th>Today</th><th class="text-end">{{ first.strftime('%B') }}</th><th class="text-end">Late</th><th class="text-end">Absent</th></tr></thead><tbody>
+    {% for r in rows %}<tr>
+      <td><strong>{{ r.user.full_name }}</strong> <span class="small text-muted">{{ r.user.role.value }}</span></td>
+      <td>{% if r.face %}<span class="text-success"><i class="bi bi-check-circle-fill"></i></span>
+          <form method="post" action="/staff/{{ r.user.id }}/face" class="d-inline"><button class="btn btn-link btn-sm p-0">update</button></form>
+        {% else %}<form method="post" action="/staff/{{ r.user.id }}/face"><button class="btn btn-sm btn-outline-primary">Register face</button></form>{% endif %}</td>
+      <td>{% if r.today %}{{ status_badge(r.today.status) }} <span class="small text-muted">{{ r.today.marked_at.strftime('%H:%M') if r.today.marked_at else '' }}</span>
+        {% elif r.face %}<span class="small text-muted">not yet</span>{% endif %}</td>
+      <td class="text-end">{{ pct(r.rate) }}</td><td class="text-end">{{ r.late }}</td><td class="text-end">{{ r.absent }}</td></tr>
+    {% else %}<tr><td colspan="6" class="text-muted">No {{ t.staffs|lower }} yet (Admin &rarr; Users &amp; roles, or import them).</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+  <div class="col-xl-4"><div class="card"><div class="card-header">School day</div><div class="card-body">
+    <form method="post" action="/staff/schedule" class="row g-2">
+      <div class="col-6"><label class="form-label small mb-0">Check-in time</label><input class="form-control" type="time" name="start" value="{{ course.schedule_start }}" required></div>
+      <div class="col-6"><label class="form-label small mb-0">Day length</label><div class="input-group"><input class="form-control" type="number" name="minutes" min="30" max="900" value="{{ course.schedule_minutes }}"><span class="input-group-text small">min</span></div></div>
+      <div class="col-12">{% for d in days %}<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="days" value="{{ loop.index0 }}" id="sd{{ loop.index0 }}" {{ 'checked' if loop.index0 in active_days }}>
+        <label class="form-check-label small" for="sd{{ loop.index0 }}">{{ d[:3] }}</label></div>{% endfor %}</div>
+      <div class="col-12 small text-muted">Arriving within the present / late minutes of System settings counts as present / late.</div>
+      <div class="col-12"><button class="btn btn-primary btn-sm">Save</button></div>
+    </form></div></div></div>
+</div>
+{% endblock %}

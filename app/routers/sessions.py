@@ -47,7 +47,7 @@ def new_session(request: Request, course_id: int = 0, user: User = Depends(staff
     scope = course_scope(db, user)
     if scope is not None:
         q = q.where(Course.id.in_(scope))
-    cfg = app_settings.all_settings(db)
+    cfg = app_settings.all_settings(db, user.org_id)
     return render(request, "sessions/form.html", user, courses=db.scalars(q).all(), course_id=course_id,
                   today=date.today().isoformat(), now=datetime.now().strftime("%H:%M"), cfg=cfg)
 

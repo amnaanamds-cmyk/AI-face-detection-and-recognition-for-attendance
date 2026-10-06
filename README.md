@@ -55,6 +55,9 @@ The computer running FaceAttend must be on for phones to work.
 
 **Using it in a school** (teachers on phones, principal overview): see [docs/SCHOOL_SETUP.md](docs/SCHOOL_SETUP.md).
 
+**New for schools:** weekly timetable with one-tap Start and missed-period alerts, holiday calendar, teacher
+attendance by face, the monthly register (day by day, Excel/PDF), and automatic backups (see the school guide, section 5).
+
 **One website for every school and college** (each signs up and gets its own account, pays by bank /
 JazzCash / Easypaisa): [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/amnaanamds-cmyk/AI-face-detection-and-recognition-for-attendance)
 then follow [docs/GO_LIVE.md](docs/GO_LIVE.md).

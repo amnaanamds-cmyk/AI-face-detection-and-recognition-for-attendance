@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_macros.html" import status_badge, pct, session_state %}
+{% from "_periods.html" import periods_card with context %}
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
   <h1 class="h3 mb-0">AI Attendance Dashboard</h1>
@@ -58,6 +59,10 @@
         </tbody></table></div></div>
   </div>
   <div class="col-lg-5">
+    {% if me %}<div class="card mb-3"><div class="card-body py-2 d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-person-check"></i> My attendance this month: <strong>{{ pct(me.rate) }}</strong> <span class="small text-muted">{{ me.late }} late, {{ me.absent }} absent</span></span>
+      <span class="small">{% if me.today %}today {{ status_badge(me.today.status) }} {{ me.today.marked_at.strftime('%H:%M') if me.today.marked_at else '' }}{% else %}<span class="text-muted">not checked in today</span>{% endif %}</span></div></div>{% endif %}
+    {% if periods or holiday %}{{ periods_card(periods, holiday, ('My periods today' if user.role.value == 'teacher' else 'Periods today'), show_teacher=user.role.value == 'admin') }}{% endif %}
     <div class="card mb-3"><div class="card-header">Recent attendance</div>
       <ul class="list-group list-group-flush">
       {% for r in d.recent %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Holidays{% endblock %}
+{% block content %}
+<h1 class="h3 mb-1"><i class="bi bi-calendar-x"></i> Holidays</h1>
+<p class="text-muted">No periods are expected on these days: nobody is marked absent and the principal's overview does not count them as missed.</p>
+<div class="row g-3">
+  {% if user.role.value == 'admin' %}
+  <div class="col-lg-4"><div class="card"><div class="card-header">Add a holiday</div><div class="card-body">
+    <form method="post" action="/calendar/add" class="row g-2">
+      <div class="col-12"><input class="form-control" name="name" required placeholder="e.g. Eid ul Adha, Winter vacation"></div>
+      <div class="col-6"><label class="form-label small mb-0">From</label><input class="form-control" type="date" name="start" required value="{{ today.isoformat() }}"></div>
+      <div class="col-6"><label class="form-label small mb-0">To (optional)</label><input class="form-control" type="date" name="end"></div>
+      <div class="col-12"><button class="btn btn-primary">Add</button></div>
+    </form></div></div></div>
+  {% endif %}
+  <div class="col-lg-8"><div class="card"><div class="table-responsive"><table class="table table-sm align-middle mb-0">
+    <thead><tr><th>Holiday</th><th>Dates</th><th class="text-end">Days</th><th></th></tr></thead><tbody>
+    {% for h in holidays %}<tr class="{{ 'table-info' if h.start <= today <= h.end else ('text-muted' if h.end < today else '') }}">
+      <td>{{ h.name }}</td><td>{{ h.start.strftime('%a %d %b %Y') }}{% if h.end != h.start %} &ndash; {{ h.end.strftime('%a %d %b %Y') }}{% endif %}</td>
+      <td class="text-end">{{ (h.end - h.start).days + 1 }}</td>
+      <td class="text-end">{% if user.role.value == 'admin' %}<form method="post" action="/calendar/{{ h.id }}/delete" onsubmit="return confirm('Delete this holiday?')"><button class="btn btn-sm btn-link text-danger p-0">Delete</button></form>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="4" class="text-muted">No holidays yet.</td></tr>{% endfor %}
+    </tbody></table></div></div></div>
+</div>
+{% endblock %}

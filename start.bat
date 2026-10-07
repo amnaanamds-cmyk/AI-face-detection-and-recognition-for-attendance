@@ -1,7 +1,6 @@
 @echo off
 REM One-click start on Windows: opens the FaceAttend desktop app (no console window stays open).
 REM   start.bat --server   console server only (http://127.0.0.1:8000)
-REM   start.bat --lan      console server with HTTPS for phones
 setlocal
 cd /d "%~dp0"
 title FaceAttend setup

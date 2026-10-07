@@ -19,7 +19,9 @@ import com.google.android.material.button.MaterialButton
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import java.net.ConnectException
+import java.net.HttpURLConnection
 import java.net.SocketTimeoutException
+import java.net.URL
 import java.net.UnknownHostException
 import javax.net.ssl.SSLException
 import kotlin.concurrent.thread
@@ -51,7 +53,6 @@ class SetupActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)
-        Tls.load(prefs)
         val pad = dp(20)
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, pad, pad, pad) }
         root.addView(TextView(this).apply { text = getString(R.string.setup_title); textSize = 24f; setTypeface(typeface, Typeface.BOLD) })
@@ -59,7 +60,7 @@ class SetupActivity : AppCompatActivity() {
 
         val all = mutableListOf<Button>()
         if (BuildConfig.CLOUD_URL.isNotEmpty()) {
-            all += big("Use FaceAttend online", primary = true) { check(BuildConfig.CLOUD_URL, null) }.also { root.addView(it) }
+            all += big("Use FaceAttend online", primary = true) { check(BuildConfig.CLOUD_URL) }.also { root.addView(it) }
         }
         all += big(getString(R.string.scan_qr), primary = BuildConfig.CLOUD_URL.isEmpty()) {
             scan.launch(ScanOptions().setPrompt("Scan the QR code on the school computer (Connect phones)")
@@ -75,7 +76,7 @@ class SetupActivity : AppCompatActivity() {
             isSingleLine = true
         }
         root.addView(address, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        all += big(getString(R.string.connect)) { check(Prefs.normalizeUrl(address.text.toString()), null) }.also { root.addView(it) }
+        all += big(getString(R.string.connect)) { check(Prefs.normalizeUrl(address.text.toString())) }.also { root.addView(it) }
         buttons = all
 
         status = TextView(this).apply { setPadding(0, pad, 0, pad); textSize = 15f }
@@ -117,11 +118,11 @@ class SetupActivity : AppCompatActivity() {
             prefs.gatewayToken = parsed.token
         }
         address.setText(parsed.server)
-        check(parsed.server, parsed.pin)
+        check(parsed.server)
     }
 
     /** Make sure the address answers like a FaceAttend server before saving it, and explain what is wrong if not. */
-    private fun check(url: String, pin: String?) {
+    private fun check(url: String) {
         if (url.isEmpty()) {
             say("Scan the QR code, or type the address shown on the school computer.", error = true)
             return
@@ -132,8 +133,8 @@ class SetupActivity : AppCompatActivity() {
             val host = Uri.parse(url).host ?: ""
             val local = isLocal(host)
             val error = try {
-                if (pin != null) Tls.fetchAndPin(url, pin, prefs)
-                val conn = Tls.open("$url/login")
+                if (local) throw LocalAddress()
+                val conn = URL("$url/login").openConnection() as HttpURLConnection
                 conn.connectTimeout = 10000
                 conn.readTimeout = 10000
                 val code = conn.responseCode
@@ -144,20 +145,17 @@ class SetupActivity : AppCompatActivity() {
                         "Connect phones, press Share online and scan the new QR code."
                     else -> "The server answered with error $code. Is this the FaceAttend address?"
                 }
-            } catch (e: SecurityException) {
-                "Not connected: ${e.message}."
+            } catch (e: LocalAddress) {
+                "$host is a local Wi-Fi address. Phones connect with the online link: on the school computer open " +
+                    "Connect phones, press Share online and scan that QR code."
             } catch (e: SSLException) {
-                if (local) "This is the school computer's own secure address. Scan its QR code (Connect phones page) " +
-                    "instead of typing it: the QR code lets the app trust it safely."
-                else "The secure connection to $host failed. Check the address."
+                "The secure connection to $host failed. Check the address."
             } catch (e: UnknownHostException) {
                 "Cannot find $host. Check the address and that this phone has internet."
             } catch (e: Exception) {
-                if (local && (e is ConnectException || e is SocketTimeoutException))
-                    "Cannot reach the school computer ($host).\n\n1. Is FaceAttend running on it? (icon next to the clock)\n" +
-                        "2. Is this phone on the same Wi-Fi as the computer?\n3. Windows Firewall must allow FaceAttend " +
-                        "(choose Allow when Windows asks, or reinstall and tick \"Allow phones on the Wi-Fi\").\n\n" +
-                        "Easier: on the computer use Share online - it works from any network."
+                if (e is ConnectException || e is SocketTimeoutException)
+                    "Cannot reach $host. Is the school computer on, with FaceAttend running and Share online switched on? " +
+                        "Does this phone have internet?"
                 else "Cannot reach $host. Is the FaceAttend server running, and is this phone online?"
             }
             runOnUiThread {
@@ -174,6 +172,8 @@ class SetupActivity : AppCompatActivity() {
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
+    private class LocalAddress : Exception()
 
     companion object {
         fun isLocal(host: String): Boolean = host.startsWith("192.168.") || host.startsWith("10.") ||

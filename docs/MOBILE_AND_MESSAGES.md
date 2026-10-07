@@ -3,16 +3,11 @@
 ## 1. Connect phones
 
 FaceAttend runs on one computer (the desktop app, with its tray icon next to the clock). Phones
-connect to it in one of two ways. Both are on the **Connect phones / share online** page (tray
-icon menu, or your name → *Mobile app*).
-
-| | Share online | Same Wi-Fi |
-|---|---|---|
-| Works from | anywhere (mobile data, other Wi-Fi) | the school Wi-Fi only |
-| Address | `https://something.trycloudflare.com` | `https://192.168.x.x:8443` |
-| Setup on each phone | none | install the server certificate once |
-| Needs internet | yes | no |
-| Note | the address changes when sharing is restarted | the address changes if the PC's IP changes |
+connect to it over the internet with **Share online**: tray icon → *Connect phones*, press
+**Share online**, and scan the QR code in the FaceAttend app. It gives a secure address like
+`https://something.trycloudflare.com` that works on mobile data and any Wi-Fi, with nothing to
+install on the phones. The address changes when sharing is restarted (then scan the new QR code).
+Phones never connect directly over the local Wi-Fi.
 
 **Share online** gives a public link, so change the `admin` password first (the app insists) and
 use strong passwords for all accounts. For a **permanent address** (e.g. `attendance.myschool.pk`),

@@ -63,7 +63,7 @@ def test_teacher_cannot_share(client, fake_cloudflared):
         db.commit()
     login(client, "t1", "teacherpass1")
     assert client.post("/share/start").status_code == 403
-    assert "Share online" not in client.get("/mobile").text
+    assert 'id="shareStart"' not in client.get("/mobile").text   # no share button for teachers
 
 
 def test_android_app_download(client, tmp_path, monkeypatch):
@@ -74,4 +74,4 @@ def test_android_app_download(client, tmp_path, monkeypatch):
     (tmp_path / "downloads" / "FaceAttend.apk").write_bytes(b"PK fake apk")
     r = client.get("/download/android")
     assert r.status_code == 200 and r.headers["content-type"] == "application/vnd.android.package-archive"
-    assert "Download Android app" in client.get("/mobile").text
+    assert 'href="/download/android"' in client.get("/mobile").text

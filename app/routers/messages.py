@@ -132,12 +132,7 @@ def pairing_qr(request: Request, user: User = Depends(admin_only), db: Session =
     token = str(app_settings.get_setting(db, user.org_id, "gateway_token"))
     if not token:
         raise HTTPException(404, "Create a pairing code first")
-    from app.routers.mobile import ca_pin
-
-    data = {"faceattend": 1, "server": _server_url(request), "token": token}
-    if data["server"].startswith("https://") and "trycloudflare.com" not in data["server"] and ca_pin():
-        data["pin"] = ca_pin()              # the app trusts this computer's own certificate
-    payload = json.dumps(data)
+    payload = json.dumps({"faceattend": 1, "server": _server_url(request), "token": token})
     buf = io.BytesIO()
     segno.make(payload, error="m").save(buf, kind="svg", scale=6, border=2, dark="#1f4e79")
     return Response(buf.getvalue(), media_type="image/svg+xml", headers={"Cache-Control": "no-store"})

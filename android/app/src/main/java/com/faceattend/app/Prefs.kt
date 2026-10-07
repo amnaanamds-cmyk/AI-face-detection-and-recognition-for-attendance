@@ -36,11 +36,6 @@ class Prefs(context: Context) {
         get() = p.getString("gw_last", "") ?: ""
         set(v) = p.edit().putString("gw_last", v).apply()
 
-    /** The school computer's own certificate authority (base64 DER), trusted after the QR fingerprint matched. */
-    var caDer: String
-        get() = p.getString("ca_der", "") ?: ""
-        set(v) = p.edit().putString("ca_der", v).apply()
-
     val paired: Boolean get() = gatewayServer.isNotEmpty() && gatewayToken.isNotEmpty()
 
     companion object {
@@ -52,7 +47,7 @@ class Prefs(context: Context) {
                 return try {
                     val o = JSONObject(t)
                     if (!o.has("server") || !o.has("token")) null
-                    else Scan(normalizeUrl(o.getString("server")), o.getString("token"), o.optString("pin").ifEmpty { null })
+                    else Scan(normalizeUrl(o.getString("server")), o.getString("token"))
                 } catch (e: Exception) {
                     null
                 }
@@ -61,8 +56,7 @@ class Prefs(context: Context) {
             if (url.isEmpty()) return null
             val host = Uri.parse(url).host ?: ""
             if (host.endsWith("github.com") || host.endsWith("githubusercontent.com")) return null   // the download QR, not a server
-            val pin = try { Uri.parse(t).getQueryParameter("pin") } catch (e: Exception) { null }
-            return Scan(url, null, pin?.takeIf { it.matches(Regex("[0-9a-fA-F]{64}")) })
+            return Scan(url, null)
         }
 
         fun normalizeUrl(raw: String): String {
@@ -75,5 +69,5 @@ class Prefs(context: Context) {
         }
     }
 
-    data class Scan(val server: String, val token: String?, val pin: String? = null)
+    data class Scan(val server: String, val token: String?)
 }

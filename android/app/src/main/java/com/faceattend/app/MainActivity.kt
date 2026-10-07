@@ -55,8 +55,7 @@ import org.json.JSONObject
 /**
  * The FaceAttend app: the school's FaceAttend pages in a WebView, with native parts a browser tab
  * cannot offer - a bottom menu that follows the person's role, a "More" sheet, sensible Back,
- * camera permission, uploads and downloads, automatic reconnection, the SMS sender, and trusting the
- * school computer's own certificate (Tls) on the Wi-Fi.
+ * camera permission, uploads and downloads, automatic reconnection and the SMS sender.
  */
 class MainActivity : AppCompatActivity() {
     private lateinit var prefs: Prefs
@@ -93,7 +92,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private val setup = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        Tls.load(prefs)
         if (prefs.serverUrl.isEmpty()) finish() else loadHome()
     }
 
@@ -106,7 +104,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)
-        Tls.load(prefs)
         buildViews()
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() = goBack()
@@ -231,17 +228,10 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            @SuppressLint("WebViewClientOnReceivedSslError")
             override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
-                // the school computer's own certificate, pinned when its QR code was scanned
-                val sameServer = Uri.parse(error.url).host == Uri.parse(server()).host
-                if (sameServer && Tls.trusts(error.certificate)) {
-                    handler.proceed()
-                } else {
-                    handler.cancel()
-                    failedUrl = error.url
-                    showOffline(Offline.CERTIFICATE)
-                }
+                handler.cancel()                    // never accept an untrusted certificate
+                failedUrl = error.url
+                showOffline(Offline.CERTIFICATE)
             }
         }
         web.webChromeClient = object : WebChromeClient() {
@@ -436,7 +426,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun showOffline(kind: Offline) {
         val host = Uri.parse(server()).host ?: ""
-        val local = SetupActivity.isLocal(host)
         offlineTitle.text = when (kind) {
             Offline.NO_INTERNET -> getString(R.string.offline_no_internet)
             Offline.CERTIFICATE -> getString(R.string.offline_certificate)
@@ -445,14 +434,12 @@ class MainActivity : AppCompatActivity() {
         }
         offlineText.text = when (kind) {
             Offline.NO_INTERNET -> "Turn on Wi-Fi or mobile data. FaceAttend reconnects by itself."
-            Offline.CERTIFICATE -> "This phone does not trust $host yet. Tap \"Change school / server\" and scan the QR code on the school computer (Connect phones)."
+            Offline.CERTIFICATE -> "The secure connection to $host failed. Tap \"Change school / server\" and scan the QR code on the school computer (Connect phones > Share online)."
             Offline.LINK_DOWN -> "The school computer is off, or Share online was stopped. When it is back on, FaceAttend reconnects by itself. " +
                 "If sharing was restarted, scan the new QR code."
             Offline.NOT_FOUND -> "The address $host does not exist any more. Tap \"Change school / server\"."
-            Offline.SERVER_OFF -> if (local)
-                "FaceAttend is not running on the school computer, or this phone is not on the school Wi-Fi.\n\n" +
-                    "On the computer: open FaceAttend (it should start with Windows). FaceAttend reconnects by itself."
-            else "The FaceAttend server ($host) is not answering. It reconnects by itself as soon as it is back."
+            Offline.SERVER_OFF -> "The FaceAttend server ($host) is not answering: the school computer may be off, or FaceAttend " +
+                "is not running on it. FaceAttend reconnects by itself as soon as it is back."
         }
         offline.visibility = View.VISIBLE
         refresh.isRefreshing = false
@@ -528,26 +515,15 @@ class MainActivity : AppCompatActivity() {
         linkServer(intent)
     }
 
-    /** faceattend://connect?url=https://...&pin=... (the "Open in the FaceAttend app" button): no QR code needed. */
+    /** faceattend://connect?url=https://... (the "Open in the FaceAttend app" button): no QR code needed. */
     private fun linkServer(intent: Intent?): Boolean {
         val data = intent?.data ?: return false
         if (data.scheme != "faceattend" || data.host != "connect") return false
         val url = Prefs.normalizeUrl(data.getQueryParameter("url") ?: return false)
         if (url.isEmpty()) return false
-        val pin = data.getQueryParameter("pin")?.takeIf { it.matches(Regex("[0-9a-fA-F]{64}")) }
         prefs.serverUrl = url
-        if (pin == null) {
-            Toast.makeText(this, "Connected to $url", Toast.LENGTH_LONG).show()
-            loadHome()
-            return true
-        }
-        Thread {
-            val ok = try { Tls.fetchAndPin(url, pin, prefs); true } catch (e: Exception) { false }
-            runOnUiThread {
-                Toast.makeText(this, if (ok) "Connected to $url" else "Could not verify $url - scan its QR code instead", Toast.LENGTH_LONG).show()
-                loadHome()
-            }
-        }.start()
+        Toast.makeText(this, "Connected to $url", Toast.LENGTH_LONG).show()
+        loadHome()
         return true
     }
 

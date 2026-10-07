@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-command start on Linux / macOS:  ./start.sh        (add --lan for classroom devices)
+# One-command start on Linux / macOS:  ./start.sh   (phones: Connect phones page > Share online)
 set -e
 cd "$(dirname "$0")"
 

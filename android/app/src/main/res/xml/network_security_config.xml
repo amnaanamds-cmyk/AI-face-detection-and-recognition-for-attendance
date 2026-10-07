@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Trust the system certificates and, for "same Wi-Fi" mode, the FaceAttend server certificate
-     the user installed from the server's "Connect phones" page. Plain http is allowed for
-     local test servers (the camera needs https or localhost). -->
+<!-- Phones connect only over the internet with https (Share online link or the hosted service):
+     the phone's normal trusted certificates, no plain http. -->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="true">
+    <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
-            <certificates src="user" />
         </trust-anchors>
     </base-config>
 </network-security-config>

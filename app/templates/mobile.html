@@ -1,125 +1,78 @@
 {% extends "base.html" %}
-{% block title %}Mobile app - {{ app_name }}{% if can_share %}
-<script>
-  async function share(action) {
-    const msg = document.getElementById('shareMsg');
-    msg.className = 'small mt-2 text-muted'; msg.textContent = action === 'start' ? 'Starting… this takes about 10 seconds the first time.' : 'Stopping…';
-    const r = await fetch('/share/' + action, {method: 'POST'}); const d = await r.json();
-    if (d.error && !d.running) { msg.className = 'small mt-2 text-danger'; msg.textContent = d.error; return; }
-    for (let i = 0; i < 120 && action === 'start'; i++) {
-      const s = await (await fetch('/share/status')).json();
-      if (s.url || s.error) break;
-      await new Promise(res => setTimeout(res, 1000));
-    }
-    location.reload();
-  }
-  document.getElementById('shareStart')?.addEventListener('click', () => share('start'));
-  document.getElementById('shareStop')?.addEventListener('click', () => share('stop'));
-</script>
-{% endif %}
-{% endblock %}
+{% block title %}Connect phones - {{ app_name }}{% endblock %}
 {% block content %}
 <div class="row justify-content-center"><div class="col-lg-9 col-xl-8">
-<h1 class="h3 mb-1"><i class="bi bi-phone"></i> Mobile app setup</h1>
-<p class="text-muted">Use the system on Android phones, iPhones and tablets: {{ t.staffs|lower }} take attendance with the phone camera,
-{{ t.people|lower }} check their own attendance. The app installs from the browser, with no app store needed.</p>
+<h1 class="h3 mb-1"><i class="bi bi-phone"></i> Connect phones</h1>
+<p class="text-muted">{{ t.staffs }} take attendance with their phone camera and {{ t.people|lower }} check their own attendance.
+Phones connect over the internet with a secure <code>https://</code> address: mobile data or any Wi-Fi works.</p>
 
-{% if can_share %}
+{% if url %}
+<div class="card mb-3 border-success"><div class="card-body d-md-flex align-items-center gap-4">
+  <img src="/mobile/qr.svg" alt="QR code" class="border rounded" style="width:200px;height:200px">
+  <div class="mt-3 mt-md-0">
+    <div class="fw-semibold"><i class="bi bi-globe2 text-success"></i> Your {{ 'school' if t.staff == 'Teacher' else 'organization' }}'s address</div>
+    <div class="fs-5 fw-semibold user-select-all text-break">{{ url }}</div>
+    <div class="small text-muted mt-1">Scan this QR code in the {{ app_name }} app, or open the address in any browser. It never changes.</div>
+  </div>
+</div></div>
+{% elif can_share %}
 <div class="card mb-3 border-success"><div class="card-body">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-    <div><div class="fw-semibold"><i class="bi bi-globe2 text-success"></i> Share online: any phone, anywhere</div>
-      <div class="small text-muted">A secure <code>https://</code> link through Cloudflare. Works on mobile data and other Wi-Fi networks; the camera works and the app installs. No certificate needed.</div></div>
+    <div><div class="fw-semibold"><i class="bi bi-globe2 text-success"></i> Share online</div>
+      <div class="small text-muted">Gives this computer a secure <code>https://</code> link (through Cloudflare) for every phone, on any network.</div></div>
     {% if share.running %}<button class="btn btn-outline-danger" id="shareStop"><i class="bi bi-stop-circle"></i> Stop sharing</button>
-    {% else %}<button class="btn btn-success" id="shareStart"><i class="bi bi-share"></i> Share online</button>{% endif %}
+    {% else %}<button class="btn btn-success btn-lg" id="shareStart"><i class="bi bi-share"></i> Share online</button>{% endif %}
   </div>
   <div id="shareMsg" class="small mt-2 {{ 'text-danger' if share.error else 'text-muted' }}">{{ share.error or ('Starting… this takes about 10 seconds the first time.' if share.starting else '') }}</div>
   {% if share.url %}
   <div class="d-md-flex align-items-center gap-4 mt-3">
-    <img src="/mobile/qr.svg?u=online" alt="QR code" class="border rounded" style="width:200px;height:200px">
+    <img src="/mobile/qr.svg" alt="QR code" class="border rounded" style="width:200px;height:200px">
     <div class="mt-3 mt-md-0">
-      <div class="small text-muted">Scan with the phone camera or send this link (WhatsApp, e-mail…):</div>
+      <div class="small text-muted">Scan this QR code in the {{ app_name }} app, or send the link (WhatsApp, e-mail…):</div>
       <div class="fs-5 fw-semibold user-select-all text-break">{{ share.url }}</div>
       <div class="d-flex gap-2 mt-2">
         <button class="btn btn-sm btn-outline-secondary" onclick="navigator.clipboard.writeText('{{ share.url }}'); this.textContent='Copied'">Copy link</button>
         <a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="https://wa.me/?text={{ ('Open ' ~ app_name ~ ': ' ~ share.url ~ ' - on an Android phone with the app installed, tap "Open in the FaceAttend app" on the login page.')|urlencode }}"><i class="bi bi-whatsapp"></i> Send via WhatsApp</a>
       </div>
-      <div class="small text-muted mt-2">The link works while this computer is on and {{ app_name }} is running. It changes when sharing is restarted.
-        Anyone with the link sees the login page, so use strong passwords.</div>
+      <div class="small text-muted mt-2">Works while this computer is on and {{ app_name }} is running (it starts with Windows).
+        The link changes when sharing is restarted, then scan the new QR code. For an address that never changes, use the hosted service.</div>
     </div>
   </div>
   {% endif %}
 </div></div>
+{% else %}
+<div class="alert alert-warning">Phones are not connected yet: the administrator presses <strong>Share online</strong> on this page on the school computer.</div>
 {% endif %}
 
-{% if url %}
-<div class="card mb-3"><div class="card-body d-md-flex align-items-center gap-4">
-  <img src="/mobile/qr.svg" alt="QR code" class="border rounded" style="width:200px;height:200px">
-  <div class="mt-3 mt-md-0">
-    <div class="fw-semibold"><i class="bi bi-wifi"></i> Same Wi-Fi (no internet needed)</div>
-    <div class="small text-muted">Scan with the phone camera, or type:</div>
-    <div class="fs-5 fw-semibold user-select-all">{{ url }}</div>
-    <div class="small text-muted mt-2">The phone must be on the <strong>same Wi-Fi</strong> as this computer.
-      <strong>FaceAttend app:</strong> scan this QR code in the app - it trusts this computer automatically (the code carries its security fingerprint).
-      In a browser instead, trust the certificate once (steps below).</div>
-    <div class="small text-muted mt-1">Phone cannot connect? Check that Windows Firewall allows {{ app_name }} (installer option "Allow phones on the school Wi-Fi",
-      or <em>Allow</em> when Windows asks), and that the phone is not on a guest Wi-Fi. <strong>Share online</strong> above avoids all of this.</div>
-  </div>
-</div></div>
-{% elif not can_share and not saas %}
-<div class="alert alert-warning">
-  <strong>Phones cannot connect yet.</strong> Start the system with the {{ app_name }} desktop app, <code>start-mobile.bat</code> (Windows)
-  or <code>./start.sh --lan</code> (Linux/macOS), then open this page again.
-</div>
-{% endif %}
-
-{% if apk %}
 <div class="card mb-3 border-primary"><div class="card-body">
-  <div class="fw-semibold"><i class="bi bi-android2 text-success"></i> FaceAttend Android app (recommended for Android)</div>
+  <div class="fw-semibold"><i class="bi bi-android2 text-success"></i> {{ app_name }} Android app (recommended)</div>
   <ol class="small mb-2 mt-2">
-    <li>On the phone, open the address above and tap <strong>Download Android app</strong> (or scan the QR code and come back to this page).</li>
-    <li>Open the downloaded <code>FaceAttend.apk</code>. If Android asks, allow installing apps from this source.</li>
-    <li>Open FaceAttend and tap <strong>Scan QR code</strong>, or <strong>Choose QR picture from gallery</strong> if the QR code was sent to the phone.
-      Or open the link in Chrome on the phone and tap <strong>Open in the FaceAttend app</strong> on the login page.</li>
+    <li>Install it: {% if apk %}<a href="/download/android">download the app</a> or {% endif %}<a href="https://github.com/amnaanamds-cmyk/AI-face-detection-and-recognition-for-attendance/releases/latest/download/FaceAttend.apk">the newest version</a>.
+      If Android asks, allow installing apps from this source.</li>
+    <li>Open {{ app_name }} and tap <strong>Scan QR code</strong> (the QR code above), or <strong>Choose QR picture from gallery</strong> if it was sent to the phone.
+      Or open the link in Chrome and tap <strong>Open in the FaceAttend app</strong> on the login page.</li>
+    <li>Log in with your own account. The app remembers the address and reconnects by itself.</li>
   </ol>
-  <a class="btn btn-primary btn-sm" href="/download/android"><i class="bi bi-download"></i> Download Android app (.apk)</a>
-  <a class="btn btn-outline-primary btn-sm" href="https://github.com/amnaanamds-cmyk/AI-face-detection-and-recognition-for-attendance/releases/latest/download/FaceAttend.apk">Newest version from GitHub</a>
-  <div class="small text-muted mt-2">The app can also send the parent absence SMS from the phone's SIM card (Admin &gt; Parent messages).</div>
+  <div class="small text-muted">The app can also send the parent absence SMS from the phone's SIM card (Admin &gt; Parent messages).</div>
 </div></div>
-{% endif %}
 
-<div class="row g-3">
-  <div class="col-md-6"><div class="card h-100"><div class="card-header"><i class="bi bi-android2 text-success"></i> Android (Chrome, without the app)</div><div class="card-body small">
-    <ol class="ps-3 mb-0">
-      {% if has_ca %}<li class="mb-2"><strong>Trust the server (once per phone):</strong> <a href="/mobile/attendance-ca.crt">download the certificate</a>, then open
-        <em>Settings → Security → More security settings → Encryption &amp; credentials → Install a certificate → CA certificate</em>
-        and choose <code>attendance-ca.crt</code>. On some phones the path is <em>Settings → Security → Install from storage</em>.</li>{% endif %}
-      <li class="mb-2">Open the address above in <strong>Chrome</strong> and log in.</li>
-      <li class="mb-2">Tap <strong>Install app</strong> (top bar) or Chrome menu <strong>⋮ → Install app / Add to Home screen</strong>.</li>
-      <li>Open <strong>{{ app_name }}</strong> from the home screen. It runs full-screen like a normal app.</li>
-    </ol></div></div></div>
-  <div class="col-md-6"><div class="card h-100"><div class="card-header"><i class="bi bi-apple"></i> iPhone / iPad (Safari)</div><div class="card-body small">
-    <ol class="ps-3 mb-0">
-      {% if has_ca %}<li class="mb-2"><strong>Trust the server (once per device):</strong> open this page in <strong>Safari</strong>,
-        <a href="/mobile/attendance-ca.crt">download the certificate</a> and tap <em>Allow</em>. Then go to <em>Settings → Profile Downloaded → Install</em>,
-        and after that <em>Settings → General → About → Certificate Trust Settings</em> and switch it <strong>on</strong>.</li>{% endif %}
-      <li class="mb-2">Open the address above in <strong>Safari</strong> and log in.</li>
-      <li class="mb-2">Tap <strong>Share <i class="bi bi-box-arrow-up"></i> → Add to Home Screen</strong>.</li>
-      <li>Open <strong>{{ app_name }}</strong> from the home screen.</li>
-    </ol></div></div></div>
-</div>
+<div class="card mb-3"><div class="card-header"><i class="bi bi-apple"></i> iPhone / iPad, or Android without the app</div><div class="card-body small">
+  <ol class="ps-3 mb-0">
+    <li class="mb-2">Open the address above in <strong>Safari</strong> (iPhone) or <strong>Chrome</strong> (Android) and log in.</li>
+    <li class="mb-2">iPhone: <strong>Share <i class="bi bi-box-arrow-up"></i> → Add to Home Screen</strong>. Android: menu <strong>⋮ → Install app</strong>.</li>
+    <li>Open <strong>{{ app_name }}</strong> from the home screen. It runs full-screen like a normal app.</li>
+  </ol></div></div>
 
-<div class="card mt-3"><div class="card-header">Using the app</div><div class="card-body small">
+<div class="card"><div class="card-header">Using the app</div><div class="card-body small">
   <ul class="mb-0 ps-3">
-    <li><strong>{{ t.staff }}:</strong> Attendance → Create {{ t.session|lower }} → <em>Create &amp; start</em> → choose <em>Back camera</em> → point the phone at the class.
-      On a stand or tripod at 720p.</li>
+    <li><strong>{{ t.staff }}:</strong> Home → <em>My periods today</em> → Start, or Attendance → Start attendance → point the back camera at the class
+      (on a stand or tripod works best).</li>
     <li><strong>Face registration on a phone:</strong> {{ t.people }} → {{ t.person|lower }} → Register face → <em>Flip</em> to choose the camera.</li>
-    <li><strong>{{ t.person }}:</strong> log in with the {{ t.person_id }} to see attendance percentage, history and warnings.</li>
-    <li>If you skip the certificate step, the browser shows a security warning. Tap <em>Advanced → Proceed</em>; the camera still works,
-      but the app cannot be installed and each visit shows the warning again.</li>
+    <li><strong>{{ t.person }}:</strong> log in to see attendance percentage, history and warnings.</li>
   </ul>
 </div></div>
 </div></div>
-{% if can_share %}
+{% if can_share and not url %}
 <script>
   async function share(action) {
     const msg = document.getElementById('shareMsg');

@@ -30,7 +30,7 @@ members/events).
 | Document | For |
 |---|---|
 | [docs/COMPETITIVE_FEATURES.md](docs/COMPETITIVE_FEATURES.md) | Ten differentiators (forecast, tamper-evident ledger, proxy watch, two-way parent SMS, Ask FaceAttend, revocable face data, self-learning recognition, emergency roll call, self-deleting visitor passes, exam guard) and a demo script |
-| [docs/MOBILE_AND_MESSAGES.md](docs/MOBILE_AND_MESSAGES.md) | Phones (share online / same Wi-Fi), the Android app (Android Studio), SMS / WhatsApp messages to parents |
+| [docs/MOBILE_AND_MESSAGES.md](docs/MOBILE_AND_MESSAGES.md) | Phones (share online), the Android app (Android Studio), SMS / WhatsApp messages to parents |
 | [docs/SAAS_DEPLOYMENT.md](docs/SAAS_DEPLOYMENT.md) | Running the hosted edition: Docker + HTTPS + Stripe, and selling self-hosted licences |
 | [docs/LAUNCH_CHECKLIST.md](docs/LAUNCH_CHECKLIST.md) | Legal, security and quality checks before selling |
 | [docs/PRODUCT_HUNT_LAUNCH.md](docs/PRODUCT_HUNT_LAUNCH.md) | Product Hunt listing, first comment, gallery images, launch plan |
@@ -68,7 +68,7 @@ then follow [docs/GO_LIVE.md](docs/GO_LIVE.md).
 opens in its own window. The attendance server runs in the background (tray icon next to the
 clock, optionally started with Windows), so closing the window does not break anything and every
 shortcut, browser tab or phone keeps working. Quit from the tray icon. There is no console window
-and no Python to install. Phones on the same Wi-Fi can connect while it runs (Mobile app page). Data is stored in
+and no Python to install. Phones connect through Share online while it runs (Connect phones page). Data is stored in
 `%LOCALAPPDATA%\FaceAttend`.
 
 * **Download:** GitHub → *Actions* → *Build apps* → latest run → *Artifacts*
@@ -102,13 +102,13 @@ The same system is a **web app** on PCs and an **installable mobile app** (PWA) 
 tablets. It gets a home-screen icon, runs full-screen, works with the front and back camera, and
 shows an offline screen when the server can't be reached. No app store is needed.
 
-1. On the server PC, start it with **`start-mobile.bat`** (Windows) or **`./start.sh --lan`**.
-   The window prints the phone address, e.g. `https://192.168.1.10:8443`. If Windows asks,
-   **allow Python on private networks**.
-2. On that PC, open **https://localhost:8443/mobile**. It shows a **QR code** for the phones and a
-   certificate to install once per phone (step-by-step instructions for Android and iPhone are on the page).
-3. On the phone (same Wi-Fi): scan the QR code, log in, then tap **Install app** (Android Chrome) or
-   **Share → Add to Home Screen** (iPhone Safari).
+1. Start FaceAttend on the school computer (the installed app starts with Windows).
+2. On that computer open **Connect phones** (tray icon, or the menu) and press **Share online**. It shows a
+   **QR code** and a secure `https://` link that works on mobile data and any Wi-Fi.
+3. On the phone: install the FaceAttend app and scan the QR code (or open the link in a browser and tap
+   **Install app** / **Share → Add to Home Screen**). Log in with your own account.
+
+With the hosted edition, phones simply use the service's address. Phones never connect directly over the local Wi-Fi.
 
 - **Teachers** use the phone's back camera to take attendance.
 - **Students** log in with their Student ID to see their attendance.
@@ -228,7 +228,7 @@ photos when `REAL_FACES_DIR` is set.
 ## 8. Project structure
 
 ```
-run.py, start.bat, start-mobile.bat, start.sh   launchers (HTTP locally, HTTPS for phones on the LAN)
+run.py, start.bat, start.sh    launchers (this computer; phones use Share online)
 Dockerfile, docker-compose.yml
 app/
   main.py              FastAPI app, auth middleware, first-admin bootstrap

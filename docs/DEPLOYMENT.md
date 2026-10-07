@@ -20,18 +20,13 @@ Camera placement matters more than anything else:
 
 **Option A: single PC (SQLite, simplest)**
 
-Windows: double-click **`start-mobile.bat`**. Linux/macOS: `./start.sh --lan`.
-If Windows Firewall asks, allow Python on **private networks**.
+Windows: install `FaceAttend-Setup.exe` (or double-click **`start.bat`** from the source code).
+Linux/macOS: `./start.sh`. The server listens on this computer only (`http://127.0.0.1:8000`).
 
-It prints two addresses: `https://localhost:8443` for the server PC itself, and
-`https://<server-ip>:8443` for phones and classroom devices on the same Wi-Fi.
-Open **https://localhost:8443/mobile** on the PC. It shows a QR code for the phones and the
-certificate each phone installs once, with Android and iPhone instructions. After that the phone
-trusts the server, and the app can be installed from the browser (**Install app** /
-**Add to Home Screen**).
+**Phones** connect through **Connect phones → Share online**: a secure `https://` link (Cloudflare) that
+works on mobile data and any Wi-Fi, with nothing to install on the phones and no firewall changes.
+For an address that never changes, use the hosted edition or your own domain.
 
-On the PC itself, either accept the browser warning once, or double-click
-`data\tls\ca.pem` → *Install Certificate* → *Local Machine* → *Trusted Root Certification Authorities*.
 For a real domain certificate, use `python run.py --cert fullchain.pem --key privkey.pem`.
 
 **Option B: server with PostgreSQL (Docker)**

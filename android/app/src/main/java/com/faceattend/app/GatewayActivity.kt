@@ -32,7 +32,6 @@ class GatewayActivity : AppCompatActivity() {
         info.text = "Checking pairing code…"
         thread {
             val message = try {
-                parsed.pin?.let { Tls.fetchAndPin(parsed.server, it, prefs) }   // school computer on the Wi-Fi
                 val org = Api(parsed.server, parsed.token).ping()
                 prefs.gatewayServer = parsed.server
                 prefs.gatewayToken = parsed.token
@@ -52,7 +51,6 @@ class GatewayActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)
-        Tls.load(prefs)
         val pad = (20 * resources.displayMetrics.density).toInt()
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, pad, pad, pad) }
         root.addView(TextView(this).apply { text = getString(R.string.gateway_title); textSize = 22f })

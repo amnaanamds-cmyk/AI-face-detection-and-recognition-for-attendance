@@ -53,7 +53,6 @@ class SmsGatewayService : Service() {
     override fun onCreate() {
         super.onCreate()
         prefs = Prefs(this)
-        Tls.load(prefs)
         ContextCompat.registerReceiver(this, sentReceiver, IntentFilter(ACTION_SENT), ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 

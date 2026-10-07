@@ -28,7 +28,7 @@ import webbrowser
 from pathlib import Path
 
 APP_NAME = "FaceAttend"
-HTTP_PORT, HTTPS_PORT = 8000, 8443
+HTTP_PORT = 8000
 URL = f"http://127.0.0.1:{HTTP_PORT}"
 FROZEN = getattr(sys, "frozen", False)
 BUNDLE = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
@@ -188,21 +188,6 @@ def prepare_models() -> None:
     os.environ["MODELS_DIR"] = str(models)
 
 
-def https_files():
-    """Certificate for phones on the Wi-Fi (same local CA as run.py --lan)."""
-    try:
-        from run import ensure_certificate, lan_ip
-
-        ip = lan_ip()
-        cert, key = ensure_certificate(DATA / "tls", ip)
-        os.environ.setdefault("PUBLIC_URL", f"https://{ip}:{HTTPS_PORT}")
-        return str(cert), str(key)
-    except Exception:  # noqa: BLE001 - phones are optional, the desktop window still works
-        import logging
-        logging.getLogger(APP_NAME).exception("HTTPS for phones disabled")
-        return None
-
-
 def start_tray(stop) -> None:
     """Tray icon with Open / Phones / Start with Windows / Quit. Optional: without a desktop
     session (servers, CI) the background server simply runs without it."""
@@ -259,10 +244,7 @@ def run_background() -> int:
     TOKEN_FILE.write_text(token)
     servers = [uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=HTTP_PORT, log_config=None,
                                              proxy_headers=True))]
-    tls = https_files() if port_free(HTTPS_PORT, "0.0.0.0") else None
-    if tls:
-        servers.append(uvicorn.Server(uvicorn.Config(app, host="0.0.0.0", port=HTTPS_PORT, log_config=None,
-                                                     lifespan="off", ssl_certfile=tls[0], ssl_keyfile=tls[1])))
+    # phones connect through Share online (a secure https link), never directly over the Wi-Fi
 
     def stop():
         for s in servers:

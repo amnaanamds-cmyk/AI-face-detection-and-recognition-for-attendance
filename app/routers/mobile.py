@@ -18,7 +18,6 @@ from app.models import User
 
 router = APIRouter()
 STATIC = Path(__file__).resolve().parent.parent / "static"
-CA_CERT = DATA_DIR / "tls" / "ca.pem"
 
 
 def _optional_user(request: Request) -> User | None:
@@ -30,46 +29,19 @@ def _optional_user(request: Request) -> User | None:
         return user if user and user.is_active else None
 
 
-def lan_url(request: Request) -> str | None:
-    """Address for phones on the same Wi-Fi: set by `run.py --lan` / the desktop app, or the https address in use."""
-    if os.environ.get("PUBLIC_URL"):
-        return os.environ["PUBLIC_URL"]
-    host = request.url.hostname or ""
-    if request.url.scheme == "https" and host not in ("localhost", "127.0.0.1"):
-        return str(request.base_url).rstrip("/")
-    return None
-
-
-def ca_pin() -> str | None:
-    """SHA-256 of the local certificate authority (hex). Put in the Wi-Fi QR code, it lets the FaceAttend
-    app trust this computer's certificate securely without installing anything on the phone."""
-    if not CA_CERT.exists():
-        return None
-    import hashlib
-
-    from cryptography import x509
-    from cryptography.hazmat.primitives.serialization import Encoding
-
-    try:
-        der = x509.load_pem_x509_certificate(CA_CERT.read_bytes()).public_bytes(Encoding.DER)
-    except ValueError:
-        return None
-    return hashlib.sha256(der).hexdigest()
-
-
-def with_pin(url: str) -> str:
-    """The Wi-Fi address plus ?pin=… when it uses this computer's own certificate."""
-    pin = ca_pin()
-    if not pin or not url.startswith("https://") or "trycloudflare.com" in url or settings.edition == "saas":
-        return url
-    return f"{url}/?pin={pin}"
+def configured_url(request: Request) -> str | None:
+    """The permanent public address: the hosted service, or PUBLIC_URL for a self-hosted server on its own domain."""
+    if settings.edition == "saas":
+        return settings.public_base_url.rstrip("/")
+    return os.environ.get("PUBLIC_URL") or None
 
 
 def public_url(request: Request) -> str | None:
-    """Best address for phones: the online link while sharing, else the Wi-Fi address."""
+    """Address phones use: the Share online link while it runs, else the permanent public address (if any).
+    Phones never connect over the local Wi-Fi."""
     from app.services.tunnel import tunnel
 
-    return tunnel.url if tunnel.running and tunnel.url else lan_url(request)
+    return tunnel.url if tunnel.running and tunnel.url else configured_url(request)
 
 
 @router.get("/sw.js", include_in_schema=False)
@@ -119,37 +91,21 @@ def mobile_setup(request: Request):
     from app.services.tunnel import tunnel
 
     user = _optional_user(request)
-    return render(request, "mobile.html", user, url=lan_url(request), has_ca=CA_CERT.exists(),
-                  on_https=request.url.scheme == "https", share=tunnel.status(), can_share=_can_share(user),
-                  saas=settings.edition == "saas", apk=android_apk() is not None)
+    return render(request, "mobile.html", user, url=configured_url(request), share=tunnel.status(),
+                  can_share=_can_share(user), saas=settings.edition == "saas", apk=android_apk() is not None)
 
 
 @router.get("/mobile/qr.svg", include_in_schema=False)
-def qr(request: Request, u: str = ""):
+def qr(request: Request):
+    """QR code of the address phones use (the Share online link, or the permanent public address)."""
     import segno
 
-    from app.services.tunnel import tunnel
-
-    online = tunnel.url if tunnel.running else None
-    url = (online if u == "online" else None) or lan_url(request) or str(request.base_url).rstrip("/")
-    if url != online:
-        url = with_pin(url)
+    url = public_url(request)
+    if not url:
+        return Response("Press Share online first.", status_code=404)
     buf = io.BytesIO()
     segno.make(url, error="m").save(buf, kind="svg", scale=8, border=2, dark="#1f4e79")
     return Response(buf.getvalue(), media_type="image/svg+xml")
-
-
-@router.get("/mobile/attendance-ca.crt", include_in_schema=False)
-def ca_certificate():
-    """The local certificate authority created by `run.py --lan` (public, contains no secret)."""
-    if not CA_CERT.exists():
-        return Response("Start the server with --lan first (start-mobile.bat / ./start.sh --lan).", status_code=404)
-    from cryptography import x509
-    from cryptography.hazmat.primitives.serialization import Encoding
-
-    der = x509.load_pem_x509_certificate(CA_CERT.read_bytes()).public_bytes(Encoding.DER)
-    return Response(der, media_type="application/x-x509-ca-cert",
-                    headers={"Content-Disposition": 'attachment; filename="attendance-ca.crt"'})
 
 
 # ------------------------------------------------------------------ share online (Cloudflare quick tunnel)

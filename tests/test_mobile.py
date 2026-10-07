@@ -1,7 +1,5 @@
 import json
-from pathlib import Path
 
-from cryptography import x509
 
 from tests.conftest import login
 
@@ -28,52 +26,18 @@ def test_pages_link_manifest_and_mobile_setup(client):
     html = client.get("/login").text
     assert 'rel="manifest"' in html and "serviceWorker" in html and 'href="/mobile"' in html
     r = client.get("/mobile")  # public: phones open it before logging in
-    assert r.status_code == 200 and "Mobile app setup" in r.text
-    assert "start-mobile.bat" in r.text  # plain http on the PC -> explain how to enable phones
-    assert client.get("/mobile/qr.svg").content.lstrip().startswith(b"<?xml")
+    assert r.status_code == 200 and "Connect phones" in r.text
+    assert "Share online" in r.text and "192.168" not in r.text and "certificate" not in r.text  # no Wi-Fi option
+    assert client.get("/mobile/qr.svg").status_code == 404           # no QR code before sharing online
+    from types import SimpleNamespace
+
+    from app.services.tunnel import tunnel
+    tunnel.proc, tunnel.url = SimpleNamespace(poll=lambda: None), "https://demo-school.trycloudflare.com"   # sharing
+    try:
+        assert client.get("/mobile/qr.svg").content.lstrip().startswith(b"<?xml")
+    finally:
+        tunnel.proc, tunnel.url = None, None
     assert client.get("/offline").status_code == 200
-
-
-def test_mobile_page_shows_public_url_and_certificate(client, monkeypatch, tmp_path):
-    from app.routers import mobile
-    import run
-
-    run.ensure_certificate(tmp_path, "192.168.1.50")
-    monkeypatch.setattr(mobile, "CA_CERT", tmp_path / "ca.pem")
-    monkeypatch.setenv("PUBLIC_URL", "https://192.168.1.50:8443")
-    login(client)
-    r = client.get("/mobile")
-    assert "https://192.168.1.50:8443" in r.text and "attendance-ca.crt" in r.text
-    der = client.get("/mobile/attendance-ca.crt")
-    ca = x509.load_der_x509_certificate(der.content)
-    assert ca.extensions.get_extension_for_class(x509.BasicConstraints).value.ca
-    assert b"PRIVATE" not in der.content
-
-
-def test_certificate_authority_and_ip_change(tmp_path: Path):
-    import run
-
-    cert_p, key_p = run.ensure_certificate(tmp_path, "192.168.1.50")
-    ca = x509.load_pem_x509_certificate((tmp_path / "ca.pem").read_bytes())
-    chain = x509.load_pem_x509_certificates(cert_p.read_bytes())
-    leaf = chain[0]
-    assert leaf.issuer == ca.subject and chain[1] == ca
-    ca.public_key().verify(leaf.signature, leaf.tbs_certificate_bytes,
-                           __import__("cryptography.hazmat.primitives.asymmetric.padding", fromlist=["PKCS1v15"]).PKCS1v15(),
-                           leaf.signature_hash_algorithm)
-    ips = [str(i) for i in leaf.extensions.get_extension_for_class(x509.SubjectAlternativeName).value.get_values_for_type(x509.IPAddress)]
-    assert "192.168.1.50" in ips and (leaf.not_valid_after_utc - leaf.not_valid_before_utc).days <= 825
-
-    same = cert_p.read_bytes()
-    run.ensure_certificate(tmp_path, "192.168.1.50")
-    assert cert_p.read_bytes() == same  # reused while the IP is unchanged
-
-    run.ensure_certificate(tmp_path, "10.0.0.7")  # PC got a new IP address
-    new_leaf = x509.load_pem_x509_certificates(cert_p.read_bytes())[0]
-    new_ca = x509.load_pem_x509_certificate((tmp_path / "ca.pem").read_bytes())
-    assert new_ca == ca  # phones keep trusting the server
-    assert "10.0.0.7" in [str(i) for i in new_leaf.extensions.get_extension_for_class(
-        x509.SubjectAlternativeName).value.get_values_for_type(x509.IPAddress)]
 
 
 def test_login_page_offers_open_in_app_link(client):
@@ -81,29 +45,7 @@ def test_login_page_offers_open_in_app_link(client):
     assert 'id="openApp"' in page and "faceattend://connect?url=" in page and "FaceAttendAndroid" in page
 
 
-def test_wifi_qr_carries_certificate_pin(client, tmp_path, monkeypatch):
-    """The Wi-Fi QR code includes the fingerprint of this computer's CA so the app can trust it safely."""
-    import hashlib
-
-    from cryptography import x509
-    from cryptography.hazmat.primitives.serialization import Encoding
-
-    from app.routers import mobile
-    from run import ensure_certificate
-
-    ensure_certificate(tmp_path, "192.168.1.20")
-    monkeypatch.setattr(mobile, "CA_CERT", tmp_path / "ca.pem")
-    der = x509.load_pem_x509_certificate((tmp_path / "ca.pem").read_bytes()).public_bytes(Encoding.DER)
-    pin = hashlib.sha256(der).hexdigest()
-    assert mobile.ca_pin() == pin
-    assert mobile.with_pin("https://192.168.1.20:8443") == f"https://192.168.1.20:8443/?pin={pin}"
-    assert mobile.with_pin("https://abc.trycloudflare.com") == "https://abc.trycloudflare.com"   # public link: normal trust
-    assert hashlib.sha256(client.get("/mobile/attendance-ca.crt").content).hexdigest() == pin
-
-
 def test_app_menu_follows_role(client):
-    from tests.conftest import login
-
     login(client)
     page = client.get("/").text
     assert "FaceAttendApp.setNav" in page and '"p": "/overview"' in page and '"/backup"' in page

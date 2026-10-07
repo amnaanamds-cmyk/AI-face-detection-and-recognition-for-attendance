@@ -3,7 +3,6 @@ package com.faceattend.app
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
-import java.net.URL
 
 /** Minimal client for the server's SMS-gateway API (see app/routers/messages.py). */
 class Api(private val server: String, private val token: String) {
@@ -13,7 +12,7 @@ class Api(private val server: String, private val token: String) {
     data class Message(val id: Long, val to: String, val body: String)
 
     private fun request(method: String, path: String, body: JSONObject? = null): JSONObject {
-        val conn = URL(server + path).openConnection() as HttpURLConnection
+        val conn = Tls.open(server + path)
         conn.requestMethod = method
         conn.connectTimeout = 15000
         conn.readTimeout = 20000

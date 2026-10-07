@@ -79,3 +79,37 @@ def test_certificate_authority_and_ip_change(tmp_path: Path):
 def test_login_page_offers_open_in_app_link(client):
     page = client.get("/login").text
     assert 'id="openApp"' in page and "faceattend://connect?url=" in page and "FaceAttendAndroid" in page
+
+
+def test_wifi_qr_carries_certificate_pin(client, tmp_path, monkeypatch):
+    """The Wi-Fi QR code includes the fingerprint of this computer's CA so the app can trust it safely."""
+    import hashlib
+
+    from cryptography import x509
+    from cryptography.hazmat.primitives.serialization import Encoding
+
+    from app.routers import mobile
+    from run import ensure_certificate
+
+    ensure_certificate(tmp_path, "192.168.1.20")
+    monkeypatch.setattr(mobile, "CA_CERT", tmp_path / "ca.pem")
+    der = x509.load_pem_x509_certificate((tmp_path / "ca.pem").read_bytes()).public_bytes(Encoding.DER)
+    pin = hashlib.sha256(der).hexdigest()
+    assert mobile.ca_pin() == pin
+    assert mobile.with_pin("https://192.168.1.20:8443") == f"https://192.168.1.20:8443/?pin={pin}"
+    assert mobile.with_pin("https://abc.trycloudflare.com") == "https://abc.trycloudflare.com"   # public link: normal trust
+    assert hashlib.sha256(client.get("/mobile/attendance-ca.crt").content).hexdigest() == pin
+
+
+def test_app_menu_follows_role(client):
+    from tests.conftest import login
+
+    login(client)
+    page = client.get("/").text
+    assert "FaceAttendApp.setNav" in page and '"p": "/overview"' in page and '"/backup"' in page
+    client.post("/users/new", data={"username": "t9", "full_name": "T", "password": "teacher123", "role": "teacher"})
+    client.get("/logout")
+    assert "setNav(JSON.stringify(null))" in client.get("/login").text
+    login(client, "t9", "teacher123")
+    page = client.get("/").text
+    assert '"p": "/timetable"' in page and '"/overview"' not in page and '"/users"' not in page

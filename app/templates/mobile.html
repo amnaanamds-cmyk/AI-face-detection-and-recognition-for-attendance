@@ -58,7 +58,11 @@
     <div class="fw-semibold"><i class="bi bi-wifi"></i> Same Wi-Fi (no internet needed)</div>
     <div class="small text-muted">Scan with the phone camera, or type:</div>
     <div class="fs-5 fw-semibold user-select-all">{{ url }}</div>
-    <div class="small text-muted mt-2">The phone must be on the <strong>same Wi-Fi</strong> as this computer and trust its certificate once (steps below).</div>
+    <div class="small text-muted mt-2">The phone must be on the <strong>same Wi-Fi</strong> as this computer.
+      <strong>FaceAttend app:</strong> scan this QR code in the app - it trusts this computer automatically (the code carries its security fingerprint).
+      In a browser instead, trust the certificate once (steps below).</div>
+    <div class="small text-muted mt-1">Phone cannot connect? Check that Windows Firewall allows {{ app_name }} (installer option "Allow phones on the school Wi-Fi",
+      or <em>Allow</em> when Windows asks), and that the phone is not on a guest Wi-Fi. <strong>Share online</strong> above avoids all of this.</div>
   </div>
 </div></div>
 {% elif not can_share and not saas %}

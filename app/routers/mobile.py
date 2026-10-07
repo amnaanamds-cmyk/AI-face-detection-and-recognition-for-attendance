@@ -40,6 +40,31 @@ def lan_url(request: Request) -> str | None:
     return None
 
 
+def ca_pin() -> str | None:
+    """SHA-256 of the local certificate authority (hex). Put in the Wi-Fi QR code, it lets the FaceAttend
+    app trust this computer's certificate securely without installing anything on the phone."""
+    if not CA_CERT.exists():
+        return None
+    import hashlib
+
+    from cryptography import x509
+    from cryptography.hazmat.primitives.serialization import Encoding
+
+    try:
+        der = x509.load_pem_x509_certificate(CA_CERT.read_bytes()).public_bytes(Encoding.DER)
+    except ValueError:
+        return None
+    return hashlib.sha256(der).hexdigest()
+
+
+def with_pin(url: str) -> str:
+    """The Wi-Fi address plus ?pin=… when it uses this computer's own certificate."""
+    pin = ca_pin()
+    if not pin or not url.startswith("https://") or "trycloudflare.com" in url or settings.edition == "saas":
+        return url
+    return f"{url}/?pin={pin}"
+
+
 def public_url(request: Request) -> str | None:
     """Best address for phones: the online link while sharing, else the Wi-Fi address."""
     from app.services.tunnel import tunnel
@@ -107,6 +132,8 @@ def qr(request: Request, u: str = ""):
 
     online = tunnel.url if tunnel.running else None
     url = (online if u == "online" else None) or lan_url(request) or str(request.base_url).rstrip("/")
+    if url != online:
+        url = with_pin(url)
     buf = io.BytesIO()
     segno.make(url, error="m").save(buf, kind="svg", scale=8, border=2, dark="#1f4e79")
     return Response(buf.getvalue(), media_type="image/svg+xml")

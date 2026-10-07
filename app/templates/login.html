@@ -31,7 +31,7 @@
   // Android browser (not the app itself): one tap connects the installed app to this server, no QR code needed
   if (/Android/i.test(navigator.userAgent) && !/FaceAttendAndroid/.test(navigator.userAgent)) {
     const a = document.getElementById('openApp');
-    a.href = 'faceattend://connect?url=' + encodeURIComponent(location.origin);
+    a.href = 'faceattend://connect?url=' + encodeURIComponent(location.origin){% if ca_pin %} + '&pin={{ ca_pin }}'{% endif %};
     a.classList.remove('d-none');
   }
 </script>

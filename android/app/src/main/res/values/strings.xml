@@ -1,8 +1,8 @@
 <resources>
     <string name="app_name">FaceAttend</string>
-    <string name="setup_title">Connect to server</string>
+    <string name="setup_title">Connect to your school</string>
     <string name="gateway_title">SMS sender for parent messages</string>
-    <string name="setup_intro">Scan the QR code shown on the computer (Connect phones / share online), choose a picture of it from your gallery, or type the address.\n\nEasiest: open your school\'s FaceAttend link in Chrome and tap \"Open in the FaceAttend app\".</string>
+    <string name="setup_intro">FaceAttend keeps your school\'s attendance on its FaceAttend server: the school computer or the online service. Connect this phone once; the app remembers it.</string>
     <string name="scan_qr">Scan QR code</string>
     <string name="server_hint">https://… address of the server</string>
     <string name="connect">Connect</string>
@@ -13,4 +13,8 @@
     <string name="offline_text">Check that FaceAttend is running on the computer and that this phone has internet (online link) or is on the same Wi-Fi.</string>
     <string name="retry">Try again</string>
     <string name="channel_name">Parent messages</string>
+    <string name="setup_help">Where is the QR code?\nOn the school computer: FaceAttend icon next to the clock → Connect phones.\n• Share online: works from anywhere (mobile data or any Wi-Fi). Easiest.\n• Same Wi-Fi: the phone must be on the school Wi-Fi.\n\nThe computer must be on and FaceAttend running. Install FaceAttend with \"Start with Windows\" so it is always ready.</string>
+    <string name="offline_server_off">The school computer is not answering</string>
+    <string name="offline_no_internet">No internet connection</string>
+    <string name="offline_certificate">Secure connection not trusted</string>
 </resources>

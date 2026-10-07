@@ -19,6 +19,9 @@ templates.env.filters["fromjson"] = __import__("json").loads
 templates.env.globals["statuses"] = [s.value for s in AttendanceStatus]
 templates.env.globals["signup_enabled"] = settings.public_signup
 templates.env.globals["edition"] = settings.edition
+from app.app_nav import app_nav  # noqa: E402  (menu of the Android app)
+
+templates.env.globals["app_nav"] = app_nav
 
 
 class NotAuthenticated(Exception):

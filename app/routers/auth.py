@@ -48,7 +48,10 @@ def _safe_next(url: str | None) -> str:
 
 @router.get("/login")
 def login_page(request: Request, next: str = "/"):
-    return render(request, "login.html", None, next=_safe_next(next))
+    from app.routers.mobile import ca_pin
+
+    pin = ca_pin() if request.url.scheme == "https" and settings.edition != "saas" else None
+    return render(request, "login.html", None, next=_safe_next(next), ca_pin=pin)
 
 
 @router.post("/login")

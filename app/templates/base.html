@@ -15,11 +15,16 @@
   <link href="/static/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="/static/vendor/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
   <link href="/static/css/app.css" rel="stylesheet">
+  <script>
+    // Inside the FaceAttend Android app (version 2+) the app shows its own bottom menu: hide the web menu.
+    if (/FaceAttendAndroid\/([2-9]|\d\d)/.test(navigator.userAgent)) document.documentElement.classList.add('in-app');
+  </script>
+  <style>.in-app .app-hide { display: none !important; } .in-app main { padding-bottom: 1rem !important; }</style>
   {% block head %}{% endblock %}
 </head>
 <body>
 {% if user %}
-<nav class="navbar navbar-expand-xxl navbar-dark bg-primary-subtle-dark shadow-sm">
+<nav class="navbar navbar-expand-xxl navbar-dark bg-primary-subtle-dark shadow-sm app-hide">
   <div class="container-fluid">
     <a class="navbar-brand fw-semibold" href="/"><i class="bi bi-person-bounding-box me-1"></i>{{ app_name }}</a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav"><span class="navbar-toggler-icon"></span></button>
@@ -115,5 +120,9 @@
   });
 </script>
 {% block scripts %}{% endblock %}
+<script>
+  // Android app: its bottom menu and "More" sheet follow the logged-in person's role
+  if (window.FaceAttendApp && FaceAttendApp.setNav) FaceAttendApp.setNav(JSON.stringify({{ app_nav(user, t)|tojson }}));
+</script>
 </body>
 </html>

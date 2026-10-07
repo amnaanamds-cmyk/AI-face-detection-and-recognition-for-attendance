@@ -15,6 +15,7 @@ class SmsReceiver : BroadcastReceiver() {
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
         val prefs = Prefs(context)
         if (!prefs.paired || !prefs.gatewayEnabled) return
+        Tls.load(prefs)
         val parts = Telephony.Sms.Intents.getMessagesFromIntent(intent) ?: return
         if (parts.isEmpty()) return
         val sender = parts[0].originatingAddress ?: return
